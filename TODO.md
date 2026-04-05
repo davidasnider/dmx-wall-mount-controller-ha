@@ -3,9 +3,19 @@
 The following is a list of features and hardware limits that need to be tested and potentially implemented in future updates to improve the custom component.
 
 ## Feature 1: Full-Range Master Brightness Scaling (0x00 to 0xFF)
+**Status:** ✅ TESTED — Hardware limit confirmed. 7-step range is real, not artificial.
+
 **Image Analysis:** In Turn 67, your capture of the master brightness slider showed that the official app only transmits values from 02 to 08 across exactly 7 steps to command type 08 23. However, your captures for the individual Red, Green, and Blue channels in Turns 59, 63, and 65 showed that the DMX processor's transparent bridge accepts a full 0 to 255 (0x00 to 0xFF) scale for color intensity.
-**Test to Execute:** Send raw TCP packets to port 8899 with command type 08 23 and a data byte higher than 0x08 (e.g., 0x10, 0x80, 0xFF).
-**Objective:** To verify if the hardware natively supports a smooth 255-step master brightness curve, effectively ignoring the app's arbitrary 7-step simulated boundary.
+
+**Test Executed (2026-04-05):** Sent raw TCP packets to port 8899 with command type 08 23 and data bytes across the range 0x00–0x30, incrementally, using `test_brightness_range.py` with RGBW set to full white as a prerequisite.
+
+**Result:**
+- **0x00** = All zones OFF
+- **0x01** = Dimmest brightness (the app missed this level — it starts at 0x02)
+- **0x02–0x08** = Progressive brightness (the app's 7-step range)
+- **After 0x08**, brightness wraps back to the 0x01-equivalent level and repeats
+
+**Conclusion:** The hardware supports **9 values** (0x00–0x08): off + 8 brightness steps. The app's 0x02–0x08 mapping missed the dimmest level at 0x01. Full 0x00–0xFF linear scaling is **not supported** — the data byte wraps modulo 9. The driver has been updated to map HA brightness 0–255 → device 0x01–0x08 (8 steps), gaining one extra dim level the app never exposed.
 
 ## Feature 2: Native Home Assistant Auto-Discovery
 **Image Analysis:** The screenshot from Turn 41 shows that while the control runs on TCP, the device is constantly shouting its presence on UDP port 48899. The data payload in the bottom-right pane lists the controller's active IP (e.g., `<DEVICE_IP>`), its MAC address (`<DEVICE_MAC>`), and its hardware module identifier (HF-LPB100).
