@@ -1,0 +1,10 @@
+{
+  "domain": "dmx_diodeled",
+  "name": "DiodeLED DMX Controller",
+  "documentation": "https://github.com/davidasnider/dmx-wall-mount-controller-ha",
+  "dependencies": [],
+  "codeowners": ["@davidasnider"],
+  "config_flow": true,
+  "iot_class": "local_push",
+  "version": "0.1.0"
+}
