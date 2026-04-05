@@ -8,7 +8,7 @@ The following is a list of features and hardware limits that need to be tested a
 **Objective:** To verify if the hardware natively supports a smooth 255-step master brightness curve, effectively ignoring the app's arbitrary 7-step simulated boundary.
 
 ## Feature 2: Native Home Assistant Auto-Discovery
-**Image Analysis:** The screenshot from Turn 41 shows that while the control runs on TCP, the device is constantly shouting its presence on UDP port 48899. The data payload in the bottom-right pane lists the controller's active IP (10.1.1.87), its MAC address (74E9D83989B8), and its hardware module identifier (HF-LPB100).
+**Image Analysis:** The screenshot from Turn 41 shows that while the control runs on TCP, the device is constantly shouting its presence on UDP port 48899. The data payload in the bottom-right pane lists the controller's active IP (e.g., `<DEVICE_IP>`), its MAC address (`<DEVICE_MAC>`), and its hardware module identifier (HF-LPB100).
 **Test to Execute:** Build a background UDP listener in your Home Assistant component on port 48899 and see if you can parse that plaintext payload.
 **Objective:** To enable zero-configuration setup in Home Assistant, allowing the platform to automatically detect the device's IP and create the light entity without the user having to type in any static lease information.
 
