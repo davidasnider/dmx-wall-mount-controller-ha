@@ -20,6 +20,7 @@ import argparse
 import subprocess
 import sys
 import os
+import shutil
 import unittest.mock
 import logging
 
@@ -97,8 +98,11 @@ TEST_VALUES = [
 
 
 def speak(text: str):
-    """Announce text using macOS text-to-speech."""
-    subprocess.Popen(["say", text])
+    """Announce text using macOS text-to-speech if available."""
+    if shutil.which("say"):
+        subprocess.Popen(["say", text])
+    else:
+        logger.info("TTS [say] NOT AVAILABLE: %s", text)
 
 
 async def run_test(ip: str, port: int, pause: float):
