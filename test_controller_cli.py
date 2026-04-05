@@ -24,7 +24,9 @@ from custom_components.dmx_diodeled.dmx_controller import DiodLEDController  # n
 async def main():
     parser = argparse.ArgumentParser(description="DiodeLED DMX CLI Tester")
     parser.add_argument(
-        "--ip", default="10.1.1.87", help="Controller IP Address (default: 10.1.1.87)"
+        "--ip",
+        default=os.getenv("DMX_IP"),
+        help="Controller IP Address (default: DMX_IP env var)",
     )
     parser.add_argument(
         "--port", type=int, default=8899, help="Controller TCP Port (default: 8899)"

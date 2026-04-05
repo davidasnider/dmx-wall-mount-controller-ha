@@ -91,6 +91,9 @@ uv run python test_controller_cli.py speed 1
 uv run python test_controller_cli.py speed 10
 ```
 
-> **Note**: If your device is located at an IP other than `10.1.1.87`, or uses a port other than connection `8899`, inject parameters *before* the action command.
+> **Note**: If your device is located at an IP other than your default, or uses a port other than connection `8899`, inject parameters *before* the action command.
+> 
+> You can also set the `DMX_IP` environment variable to avoid re-typing it: `export DMX_IP=<YOUR_CONTROLLER_IP>`
+> 
 > Example (Custom IP): `uv run python test_controller_cli.py --ip 192.168.1.150 power on`
 > Example (Custom IP and Port): `uv run python test_controller_cli.py --ip 192.168.1.150 --port 8900 effect rainbow`
