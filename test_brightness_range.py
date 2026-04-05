@@ -33,7 +33,7 @@ sys.modules["homeassistant.components.light"] = unittest.mock.MagicMock()
 sys.modules["homeassistant.helpers"] = unittest.mock.MagicMock()
 sys.modules["homeassistant.helpers.entity_platform"] = unittest.mock.MagicMock()
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), ".")))
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 from custom_components.dmx_diodeled.dmx_controller import DiodLEDController  # noqa: E402
 from custom_components.dmx_diodeled.const import (  # noqa: E402
@@ -128,8 +128,6 @@ async def run_test(ip: str, port: int, pause: float):
             val,
             description,
         )
-        packet = controller._build_packet(CMD_TYPE_BRIGHTNESS, val)
-        logger.debug("  Raw packet: %s", packet.hex())
 
         await controller.async_send_command(CMD_TYPE_BRIGHTNESS, val)
         await asyncio.sleep(pause)

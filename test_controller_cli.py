@@ -16,7 +16,7 @@ sys.modules["homeassistant.helpers"] = unittest.mock.MagicMock()
 sys.modules["homeassistant.helpers.entity_platform"] = unittest.mock.MagicMock()
 
 # Put custom_components in path to load module independently of Home Assistant
-sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), ".")))
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 from custom_components.dmx_diodeled.dmx_controller import DiodLEDController  # noqa: E402
 
