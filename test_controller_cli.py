@@ -72,6 +72,12 @@ async def main():
     # In our CLI script, we will use a logger instead of prints for consistency
     cli_logger = logging.getLogger("dmx_cli_tester")
 
+    if not args.ip:
+        cli_logger.error(
+            "No controller IP specified. Use --ip <IP> or set the DMX_IP environment variable."
+        )
+        sys.exit(1)
+
     controller = DiodLEDController(args.ip, args.port)
     cli_logger.info("Connecting to DMX controller at %s:%s...", args.ip, args.port)
 
