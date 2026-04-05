@@ -1,0 +1,37 @@
+name: PR Gatekeeper
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    branches: [ "main" ]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  gatekeeper-check:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Check for approval label
+        run: |
+          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'ready-to-merge') }}" == "true" ]]; then
+            echo "Label found! The gates are open."
+            exit 0
+          else
+            echo "Waiting for 'ready-to-merge' label."
+            echo "Review the comments from Copilot/antigravity, then add the label to proceed."
+            exit 1
+          fi
+
+  automerge:
+    needs: [gatekeeper-check]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Enable auto-merge for PR
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{github.event.pull_request.html_url}}
+          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
