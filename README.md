@@ -1,6 +1,6 @@
 # DiodeLED DMX Controller for Home Assistant
 
-![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)
+![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)
 ![HA Integration](https://img.shields.io/badge/Home%20Assistant-Integration-28B9EA.svg)
 ![Local API](https://img.shields.io/badge/architecture-Local%20Push-success.svg)
 
@@ -10,11 +10,15 @@ This integration connects directly via the local area network on port 8899 witho
 
 ## Installation via HACS (Recommended)
 
-1. Open HACS in Home Assistant.
-2. Click the three dots in the top right corner and select **Custom repositories**.
-3. Paste the URL of this repository (`https://github.com/davidasnider/dmx-wall-mount-controller-ha`).
-4. Select Category: **Integration** and click Add.
-5. Search for "DiodeLED DMX" in HACS, install it, and restart Home Assistant.
+> **Note**: This is a Home Assistant **custom integration**, not an add-on. You must install it through [HACS](https://hacs.xyz/) — do **not** add this URL in the Add-on Store, or you will get a "not a valid add-on repository" error.
+
+1. Install [HACS](https://hacs.xyz/) if you haven't already.
+2. Open **HACS** from the Home Assistant sidebar.
+3. Navigate to **Integrations**.
+4. Click the three dots (⋮) in the top right corner and select **Custom repositories**.
+5. Paste the URL of this repository (`https://github.com/davidasnider/dmx-wall-mount-controller-ha`).
+6. Select Category: **Integration** and click **Add**.
+7. Search for "DiodeLED DMX" in HACS, install it, and restart Home Assistant.
 
 ## Manual Installation
 
