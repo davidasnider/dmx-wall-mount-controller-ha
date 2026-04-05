@@ -1,6 +1,6 @@
 # DiodeLED DMX Controller for Home Assistant
 
-![Status](https://img.shields.io/badge/status-active-blue.svg)
+![Version](https://img.shields.io/badge/version-0.3.0-blue.svg)
 ![HA Integration](https://img.shields.io/badge/Home%20Assistant-Integration-28B9EA.svg)
 ![Local API](https://img.shields.io/badge/architecture-Local%20Push-success.svg)
 
@@ -64,7 +64,7 @@ uv run python test_controller_cli.py rgbw 255 255 0 128
 
 ### 3. Master Brightness Mapping
 
-Home Assistant maps brightness on a `0-255` scale, but the DMX controller strictly enforces a `0x02` to `0x08` ceiling range logic across the network segment. By testing brightness, you can verify the translation array works:
+Home Assistant maps brightness on a `0-255` scale, but the DMX controller hardware uses a `0x01` to `0x08` range (8 steps). The driver maps between them automatically:
 
 ```bash
 # Minimum valid brightness step
