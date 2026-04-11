@@ -5,6 +5,7 @@ from typing import Any
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_RGBW_COLOR,
+    ATTR_RGB_COLOR,
     ATTR_EFFECT,
     ColorMode,
     LightEntity,
@@ -76,6 +77,29 @@ class DiodLEDLight(LightEntity):
             r, g, b, w = self._attr_rgbw_color
             LOGGER.debug(
                 "Setting RGBW on %s to R:%s G:%s B:%s W:%s", self._attr_name, r, g, b, w
+            )
+            await self._controller.async_set_rgbw(r, g, b, w)
+            send_power = False
+        elif ATTR_RGB_COLOR in kwargs:
+            r, g, b = kwargs[ATTR_RGB_COLOR]
+            # Scripts/UI often send pure white (255,255,255) as RGB even if we are RGBW
+            if r == 255 and g == 255 and b == 255:
+                w = 255
+                r = g = b = 0
+            else:
+                # Basic white channel extraction for other mixed colors
+                w = min(r, g, b)
+                r -= w
+                g -= w
+                b -= w
+            self._attr_rgbw_color = (r, g, b, w)
+            LOGGER.debug(
+                "Setting Transformed RGB on %s to R:%s G:%s B:%s W:%s",
+                self._attr_name,
+                r,
+                g,
+                b,
+                w,
             )
             await self._controller.async_set_rgbw(r, g, b, w)
             send_power = False

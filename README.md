@@ -1,6 +1,6 @@
 # DiodeLED DMX Controller for Home Assistant
 
-![Version](https://img.shields.io/badge/version-0.3.0-blue.svg)
+![Version](https://img.shields.io/badge/version-0.3.1-blue.svg)
 ![HA Integration](https://img.shields.io/badge/Home%20Assistant-Integration-28B9EA.svg)
 ![Local API](https://img.shields.io/badge/architecture-Local%20Push-success.svg)
 
@@ -22,11 +22,24 @@ This integration connects directly via the local area network on port 8899 witho
 
 ## Manual Installation
 
-1. Copy the `custom_components/dmx_diodeled` directory into your Home Assistant's `custom_components` directory.
+If you prefer not to use HACS, you can install the integration manually:
+
+1. Copy the `custom_components/dmx_diodeled` directory from this repository into your Home Assistant's `custom_components` directory.
 2. Restart Home Assistant.
-3. Navigate to **Settings > Devices & Services > Add Integration**.
-4. Search for "DiodeLED DMX Controller".
-5. Enter the IP Address of the wall controller when prompted.
+
+## Adding the Device to Home Assistant
+
+Once the integration is installed (via HACS or manually) and Home Assistant has restarted, follow these steps to add your DMX controller:
+
+1. **Find the IP Address:** Discover the IP address of your wall controller. You can find this in your router's DHCP lease table (look for Espressif or HF-LPB100 devices) or within the official TouchDial mobile app if previously configured. **It is highly recommended to assign a static IP address** to the controller in your router to prevent connection issues if the IP changes.
+2. Open Home Assistant and navigate to **Settings** > **Devices & Services**.
+3. Click the **+ Add Integration** button in the bottom right corner.
+4. Search for **"DiodeLED DMX Controller"** and select it. *If it doesn't appear, try clearing your browser cache or doing a hard refresh.*
+5. In the configuration dialog, enter the following details:
+   - **Host:** The IP address of your DMX controller on your local network (e.g., `192.168.1.50`).
+   - **Port:** `8899` (This is the default port for these devices and rarely needs changing).
+   - **Name:** A friendly name for your controller (default is "DiodeLED DMX").
+6. Click **Submit**. Home Assistant will immediately add the controller and expose a light entity (e.g., `light.diodeled_dmx`) that you can add to your dashboards.
 
 ## Local Testing & Development
 
@@ -101,3 +114,34 @@ uv run python test_controller_cli.py speed 10
 > 
 > Example (Custom IP): `uv run python test_controller_cli.py --ip 192.168.1.150 power on`
 > Example (Custom IP and Port): `uv run python test_controller_cli.py --ip 192.168.1.150 --port 8900 effect rainbow`
+
+## Troubleshooting & Debugging
+
+If the integration doesn't seem to be working, here are the steps to isolate the problem:
+
+### 1. Close the Mobile App
+The hardware controller only supports **one active TCP connection at a time**. If you have the official TouchDial mobile app open on your phone, Home Assistant will be blocked from sending commands. Force-close the app and try again.
+
+### 2. Verify Basic Connectivity with the CLI
+Use the included `test_controller_cli.py` script to bypass Home Assistant entirely and test the direct network connection from your computer:
+```bash
+uv run python test_controller_cli.py --ip <YOUR_CONTROLLER_IP> power on
+```
+If this fails, the problem is at the network level:
+- Ensure the IP address is correct (ping it!).
+- Ensure your Home Assistant / computer is on the same network subnet/VLAN as the controller.
+- Check if your router or firewall is blocking TCP port `8899`.
+
+### 3. Enable Home Assistant Debug Logging
+If the CLI works but the Home Assistant integration does not, you can enable verbose logging to see exactly what hex payloads HA is trying to send.
+
+Add the following to your Home Assistant `configuration.yaml`:
+
+```yaml
+logger:
+  default: info
+  logs:
+    custom_components.dmx_diodeled: debug
+```
+
+Restart Home Assistant, attempt to turn the light on/off from the dashboard, and then check `Settings` > `System` > `Logs` (or view the `home-assistant.log` file directly). You will see the exact connection attempts and byte arrays being sent.
