@@ -82,16 +82,13 @@ class DiodLEDLight(LightEntity):
             send_power = False
         elif ATTR_RGB_COLOR in kwargs:
             r, g, b = kwargs[ATTR_RGB_COLOR]
-            # Scripts/UI often send pure white (255,255,255) as RGB even if we are RGBW
-            if r == 255 and g == 255 and b == 255:
-                w = 255
-                r = g = b = 0
-            else:
-                # Basic white channel extraction for other mixed colors
-                w = min(r, g, b)
-                r -= w
-                g -= w
-                b -= w
+            # Extract the white component from the RGB values — the minimum
+            # of R, G, B represents light that can be produced by the
+            # dedicated white LED channel instead.
+            w = min(r, g, b)
+            r -= w
+            g -= w
+            b -= w
             self._attr_rgbw_color = (r, g, b, w)
             LOGGER.debug(
                 "Setting Transformed RGB on %s to R:%s G:%s B:%s W:%s",
