@@ -1,6 +1,6 @@
 [project]
 name = "dmx-wall-mount-controller-ha"
-version = "0.3.0"
+version = "0.3.1"
 description = "Home Assistant custom integration for DiodeLED DMX Wi-Fi wall controllers"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -11,5 +11,6 @@ dev = [
     "detect-secrets>=1.5.0",
     "pre-commit>=4.5.1",
     "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
     "ruff>=0.15.9",
 ]
