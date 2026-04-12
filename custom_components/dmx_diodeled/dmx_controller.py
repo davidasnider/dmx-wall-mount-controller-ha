@@ -71,7 +71,7 @@ class DiodLEDController:
                     payload.extend(self._build_packet(cmd_type, val))
 
                 LOGGER.debug(
-                    "Sending command frame to %s:%s - %s",
+                    "Sending batched command payload to %s:%s - %s",
                     self.ip,
                     self.port,
                     payload.hex(),
@@ -79,7 +79,7 @@ class DiodLEDController:
 
                 writer = None
                 try:
-                    reader, writer = await asyncio.wait_for(
+                    _, writer = await asyncio.wait_for(
                         asyncio.open_connection(self.ip, self.port), timeout=2.0
                     )
                     writer.write(payload)
@@ -145,7 +145,7 @@ class DiodLEDController:
         await self.async_send_commands([self.get_power_command(on)])
 
     async def async_set_brightness(self, ha_brightness: int):
-        """Set master brightness (map 0-255 to 0x02-0x08)."""
+        """Set master brightness (map 0-255 to 0x01-0x08)."""
         await self.async_send_commands([self.get_brightness_command(ha_brightness)])
 
     async def async_set_rgbw(self, r: int, g: int, b: int, w: int):
