@@ -22,6 +22,7 @@ from .const import (
     BRIGHTNESS_MAX,
     SPEED_MIN,
     SPEED_MAX,
+    CMD_CHUNK_SIZE,
 )
 
 
@@ -52,8 +53,8 @@ class DiodLEDController:
         return bytes(packet)
 
     async def async_send_commands(self, commands: list[tuple[list[int], int]]):
-        """Send a batch of commands to the controller, max 15 per network call."""
-        chunk_size = 15
+        """Send a batch of commands to the controller, max CMD_CHUNK_SIZE per network call."""
+        chunk_size = CMD_CHUNK_SIZE
 
         async with self._lock:
             for i in range(0, len(commands), chunk_size):
@@ -76,16 +77,23 @@ class DiodLEDController:
                     payload.hex(),
                 )
 
+                writer = None
                 try:
                     reader, writer = await asyncio.wait_for(
                         asyncio.open_connection(self.ip, self.port), timeout=2.0
                     )
                     writer.write(payload)
-                    await writer.drain()
+                    await asyncio.wait_for(writer.drain(), timeout=2.0)
                     writer.close()
-                    await writer.wait_closed()
+                    await asyncio.wait_for(writer.wait_closed(), timeout=2.0)
                     self._last_send_time = time.time()
                 except (asyncio.TimeoutError, ConnectionRefusedError, OSError) as err:
+                    if writer is not None:
+                        writer.close()
+                        try:
+                            await asyncio.wait_for(writer.wait_closed(), timeout=2.0)
+                        except (asyncio.TimeoutError, ConnectionRefusedError, OSError):
+                            pass
                     LOGGER.error(
                         "Failed to communicate with DMX controller at %s:%s. Error: %s",
                         self.ip,

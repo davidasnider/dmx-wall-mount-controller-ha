@@ -81,6 +81,7 @@ async def test_rgb_pure_white_maps_to_white_channel(light, mock_controller):
 
     mock_controller.get_rgbw_commands.assert_called_once_with(0, 0, 0, 255)
     assert light._attr_rgbw_color == (0, 0, 0, 255)
+    mock_controller.async_send_commands.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -91,6 +92,7 @@ async def test_rgb_mixed_color_extracts_white(light, mock_controller):
 
     mock_controller.get_rgbw_commands.assert_called_once_with(150, 50, 0, 50)
     assert light._attr_rgbw_color == (150, 50, 0, 50)
+    mock_controller.async_send_commands.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -100,6 +102,7 @@ async def test_rgb_pure_red_has_no_white(light, mock_controller):
 
     mock_controller.get_rgbw_commands.assert_called_once_with(255, 0, 0, 0)
     assert light._attr_rgbw_color == (255, 0, 0, 0)
+    mock_controller.async_send_commands.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -109,6 +112,7 @@ async def test_rgb_black_maps_to_all_zeros(light, mock_controller):
 
     mock_controller.get_rgbw_commands.assert_called_once_with(0, 0, 0, 0)
     assert light._attr_rgbw_color == (0, 0, 0, 0)
+    mock_controller.async_send_commands.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -118,3 +122,4 @@ async def test_rgbw_passthrough_unchanged(light, mock_controller):
 
     mock_controller.get_rgbw_commands.assert_called_once_with(100, 200, 50, 128)
     assert light._attr_rgbw_color == (100, 200, 50, 128)
+    mock_controller.async_send_commands.assert_awaited_once()
