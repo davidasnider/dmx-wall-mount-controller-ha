@@ -51,71 +51,104 @@ class DiodLEDController:
 
         return bytes(packet)
 
-    async def async_send_command(self, cmd_type: list[int], val: int):
-        """Send a command to the controller with rate limiting."""
+    async def async_send_commands(self, commands: list[tuple[list[int], int]]):
+        """Send a batch of commands to the controller, max 15 per network call."""
+        chunk_size = 15
+
         async with self._lock:
-            # Throttling
-            now = time.time()
-            elapsed = now - self._last_send_time
-            if elapsed < THROTTLE_DELAY:
-                await asyncio.sleep(THROTTLE_DELAY - elapsed)
+            for i in range(0, len(commands), chunk_size):
+                chunk = commands[i : i + chunk_size]
 
-            packet = self._build_packet(cmd_type, val)
-            LOGGER.debug(
-                "Sending command frame to %s:%s - %s", self.ip, self.port, packet.hex()
-            )
+                # Throttling
+                now = time.time()
+                elapsed = now - self._last_send_time
+                if elapsed < THROTTLE_DELAY:
+                    await asyncio.sleep(THROTTLE_DELAY - elapsed)
 
-            try:
-                reader, writer = await asyncio.wait_for(
-                    asyncio.open_connection(self.ip, self.port), timeout=2.0
-                )
-                writer.write(packet)
-                await writer.drain()
-                writer.close()
-                await writer.wait_closed()
-                self._last_send_time = time.time()
-            except (asyncio.TimeoutError, ConnectionRefusedError, OSError) as err:
-                LOGGER.error(
-                    "Failed to communicate with DMX controller at %s:%s. Error: %s",
+                payload = bytearray()
+                for cmd_type, val in chunk:
+                    payload.extend(self._build_packet(cmd_type, val))
+
+                LOGGER.debug(
+                    "Sending command frame to %s:%s - %s",
                     self.ip,
                     self.port,
-                    err,
+                    payload.hex(),
                 )
-                raise
 
-    async def async_set_power(self, on: bool):
-        """Turn the light on or off."""
+                try:
+                    reader, writer = await asyncio.wait_for(
+                        asyncio.open_connection(self.ip, self.port), timeout=2.0
+                    )
+                    writer.write(payload)
+                    await writer.drain()
+                    writer.close()
+                    await writer.wait_closed()
+                    self._last_send_time = time.time()
+                except (asyncio.TimeoutError, ConnectionRefusedError, OSError) as err:
+                    LOGGER.error(
+                        "Failed to communicate with DMX controller at %s:%s. Error: %s",
+                        self.ip,
+                        self.port,
+                        err,
+                    )
+                    raise
+
+    async def async_send_command(self, cmd_type: list[int], val: int):
+        """Send a single command to the controller with rate limiting."""
+        await self.async_send_commands([(cmd_type, val)])
+
+    def get_power_command(self, on: bool) -> tuple[list[int], int]:
+        """Get the power command tuple."""
         val = VAL_POWER_ON if on else VAL_POWER_OFF
-        await self.async_send_command(CMD_TYPE_POWER, val)
+        return (CMD_TYPE_POWER, val)
 
-    async def async_set_brightness(self, ha_brightness: int):
-        """Set master brightness (map 0-255 to 0x02-0x08)."""
-        # Map 0-255 to 2-8
-        # Formula: min + (val/255) * (max-min)
+    def get_brightness_command(self, ha_brightness: int) -> tuple[list[int], int]:
+        """Get the brightness command tuple."""
         val = BRIGHTNESS_MIN + round(
             (ha_brightness / 255.0) * (BRIGHTNESS_MAX - BRIGHTNESS_MIN)
         )
-        await self.async_send_command(CMD_TYPE_BRIGHTNESS, val)
+        return (CMD_TYPE_BRIGHTNESS, val)
+
+    def get_rgbw_commands(
+        self, r: int, g: int, b: int, w: int
+    ) -> list[tuple[list[int], int]]:
+        """Get a list of RGBW command tuples."""
+        return [
+            (CMD_TYPE_RED, r),
+            (CMD_TYPE_GREEN, g),
+            (CMD_TYPE_BLUE, b),
+            (CMD_TYPE_WHITE, w),
+        ]
+
+    def get_rainbow_command(self, on: bool) -> tuple[list[int], int] | None:
+        """Get the rainbow effect command tuple."""
+        if on:
+            return (CMD_TYPE_RAINBOW, VAL_RAINBOW_ON)
+        return None
+
+    def get_speed_command(self, speed: int) -> tuple[list[int], int]:
+        """Get the speed command tuple."""
+        val = max(SPEED_MIN, min(SPEED_MAX, speed))
+        return (CMD_TYPE_SPEED, val)
+
+    async def async_set_power(self, on: bool):
+        """Turn the light on or off."""
+        await self.async_send_commands([self.get_power_command(on)])
+
+    async def async_set_brightness(self, ha_brightness: int):
+        """Set master brightness (map 0-255 to 0x02-0x08)."""
+        await self.async_send_commands([self.get_brightness_command(ha_brightness)])
 
     async def async_set_rgbw(self, r: int, g: int, b: int, w: int):
         """Set RGBW values."""
-        # The protocol seems to send independent frames for each channel
-        # We send them sequentially. Rate limiting will handle the spacing.
-        tasks = [
-            self.async_send_command(CMD_TYPE_RED, r),
-            self.async_send_command(CMD_TYPE_GREEN, g),
-            self.async_send_command(CMD_TYPE_BLUE, b),
-            self.async_send_command(CMD_TYPE_WHITE, w),
-        ]
-        # We don't use gather because we want to enforce the lock in async_send_command
-        # and ensure they are sent sequentially with the throttle.
-        for task in tasks:
-            await task
+        await self.async_send_commands(self.get_rgbw_commands(r, g, b, w))
 
     async def async_set_rainbow(self, on: bool):
         """Activate rainbow mode."""
-        if on:
-            await self.async_send_command(CMD_TYPE_RAINBOW, VAL_RAINBOW_ON)
+        cmd = self.get_rainbow_command(on)
+        if cmd:
+            await self.async_send_commands([cmd])
         else:
             # How to turn off rainbow? Probably by sending a color or power off.
             # PRD doesn't mention rainbow off specifically.
@@ -123,5 +156,4 @@ class DiodLEDController:
 
     async def async_set_speed(self, speed: int):
         """Set pattern speed (1-10)."""
-        val = max(SPEED_MIN, min(SPEED_MAX, speed))
-        await self.async_send_command(CMD_TYPE_SPEED, val)
+        await self.async_send_commands([self.get_speed_command(speed)])

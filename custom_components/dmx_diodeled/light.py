@@ -63,12 +63,16 @@ class DiodLEDLight(LightEntity):
 
         LOGGER.debug("Turn On call received for %s", self._attr_name)
 
+        commands = []
+
         if ATTR_BRIGHTNESS in kwargs:
             self._attr_brightness = kwargs[ATTR_BRIGHTNESS]
             LOGGER.debug(
                 "Setting brightness on %s to %s", self._attr_name, self._attr_brightness
             )
-            await self._controller.async_set_brightness(self._attr_brightness)
+            commands.append(
+                self._controller.get_brightness_command(self._attr_brightness)
+            )
             send_power = False  # Brightness command might already trigger light?
             # PRD implies separate frames. We send them as requested.
 
@@ -78,7 +82,7 @@ class DiodLEDLight(LightEntity):
             LOGGER.debug(
                 "Setting RGBW on %s to R:%s G:%s B:%s W:%s", self._attr_name, r, g, b, w
             )
-            await self._controller.async_set_rgbw(r, g, b, w)
+            commands.extend(self._controller.get_rgbw_commands(r, g, b, w))
             send_power = False
         elif ATTR_RGB_COLOR in kwargs:
             r, g, b = kwargs[ATTR_RGB_COLOR]
@@ -98,7 +102,7 @@ class DiodLEDLight(LightEntity):
                 b,
                 w,
             )
-            await self._controller.async_set_rgbw(r, g, b, w)
+            commands.extend(self._controller.get_rgbw_commands(r, g, b, w))
             send_power = False
 
         if ATTR_EFFECT in kwargs:
@@ -107,11 +111,16 @@ class DiodLEDLight(LightEntity):
                 LOGGER.debug(
                     "Setting Effect on %s to %s", self._attr_name, self._attr_effect
                 )
-                await self._controller.async_set_rainbow(True)
+                cmd = self._controller.get_rainbow_command(True)
+                if cmd:
+                    commands.append(cmd)
                 send_power = False
 
         if send_power:
-            await self._controller.async_set_power(True)
+            commands.append(self._controller.get_power_command(True))
+
+        if commands:
+            await self._controller.async_send_commands(commands)
 
         self.async_write_ha_state()
 
