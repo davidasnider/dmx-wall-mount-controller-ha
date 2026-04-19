@@ -1,6 +1,6 @@
 # DiodeLED DMX Controller for Home Assistant
 
-![Version](https://img.shields.io/badge/version-0.4.2-blue.svg)
+![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/davidasnider/dmx-wall-mount-controller-ha?label=version)
 ![HA Integration](https://img.shields.io/badge/Home%20Assistant-Integration-28B9EA.svg)
 ![Local API](https://img.shields.io/badge/architecture-Local%20Push-success.svg)
 
