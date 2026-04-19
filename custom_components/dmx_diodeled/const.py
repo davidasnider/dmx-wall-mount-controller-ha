@@ -37,7 +37,9 @@ SPEED_MIN = 0x01
 SPEED_MAX = 0x0A
 
 # Rate Limiting (seconds between network payloads)
-THROTTLE_DELAY = 0.1  # Hardware handles burst commands, but we delay between socket calls
+THROTTLE_DELAY = (
+    0.1  # Hardware handles burst commands, but we delay between socket calls
+)
 
 # Maximum number of commands to batch in a single network payload
 CMD_CHUNK_SIZE = 15
