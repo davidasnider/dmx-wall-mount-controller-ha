@@ -17,8 +17,9 @@ This skill automates the process of bumping the version in `manifest.json` and `
 3.  **Update Files**: Use the `replace` tool to update the version string in:
     *   `custom_components/dmx_diodeled/manifest.json`
     *   `pyproject.toml`
+    *   **Lock Update**: Run `uv lock` to update `uv.lock` with the new version.
 4.  **Source Control**:
-    *   Run `git add custom_components/dmx_diodeled/manifest.json pyproject.toml`
+    *   Run `git add custom_components/dmx_diodeled/manifest.json pyproject.toml uv.lock`
     *   Run `git commit -m "Bump version to X.Y.Z"` (replacing X.Y.Z with the new version).
     *   Run `git push`.
 5.  **GitHub Release**:
