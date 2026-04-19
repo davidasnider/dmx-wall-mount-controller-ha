@@ -42,4 +42,5 @@ THROTTLE_DELAY = (
 )
 
 # Maximum number of commands to batch in a single network payload
-CMD_CHUNK_SIZE = 15
+# Set to 1 because hardware requires one TCP connection per 12-byte command
+CMD_CHUNK_SIZE = 1

@@ -19,7 +19,7 @@ _light_mod.ATTR_RGBW_COLOR = "rgbw_color"
 _light_mod.ATTR_RGB_COLOR = "rgb_color"
 _light_mod.ATTR_EFFECT = "effect"
 _light_mod.ColorMode = unittest.mock.MagicMock()
-_light_mod.ColorMode.RGBW = "rgbw"
+_light_mod.ColorMode.RGB = "rgb"
 _light_mod.LightEntityFeature = unittest.mock.MagicMock()
 _light_mod.LightEntityFeature.EFFECT = 4
 
@@ -75,56 +75,56 @@ def light(mock_controller):
 
 
 @pytest.mark.asyncio
-async def test_rgb_pure_white_maps_to_white_channel(light, mock_controller):
-    """Pure white RGB (255,255,255) should map entirely to the W channel: (0,0,0,255)."""
+async def test_rgb_pure_white_capped(light, mock_controller):
+    """Pure white RGB (255,255,255) should be capped to (254, 254, 254)."""
     await light.async_turn_on(rgb_color=(255, 255, 255))
 
-    mock_controller.get_rgbw_commands.assert_called_once_with(0, 0, 0, 255)
-    assert light._attr_rgbw_color == (0, 0, 0, 255)
-    expected_cmds = [("RED", 0), ("GREEN", 0), ("BLUE", 0), ("WHITE", 255)]
+    mock_controller.get_rgbw_commands.assert_called_once_with(254, 254, 254, 0)
+    assert light._attr_rgb_color == (254, 254, 254)
+    expected_cmds = [("RED", 254), ("GREEN", 254), ("BLUE", 254), ("WHITE", 0)]
     mock_controller.async_send_commands.assert_awaited_once_with(expected_cmds)
 
 
 @pytest.mark.asyncio
-async def test_rgb_mixed_color_extracts_white(light, mock_controller):
-    """Mixed RGB values should extract the minimum as the W component."""
-    # (200, 100, 50) -> W=50, R=150, G=50, B=0
+async def test_rgb_mixed_color_no_extraction(light, mock_controller):
+    """Mixed RGB values should NOT extract a W component."""
     await light.async_turn_on(rgb_color=(200, 100, 50))
 
-    mock_controller.get_rgbw_commands.assert_called_once_with(150, 50, 0, 50)
-    assert light._attr_rgbw_color == (150, 50, 0, 50)
-    expected_cmds = [("RED", 150), ("GREEN", 50), ("BLUE", 0), ("WHITE", 50)]
+    mock_controller.get_rgbw_commands.assert_called_once_with(200, 100, 50, 0)
+    assert light._attr_rgb_color == (200, 100, 50)
+    expected_cmds = [("RED", 200), ("GREEN", 100), ("BLUE", 50), ("WHITE", 0)]
     mock_controller.async_send_commands.assert_awaited_once_with(expected_cmds)
 
 
 @pytest.mark.asyncio
-async def test_rgb_pure_red_has_no_white(light, mock_controller):
-    """Pure red (255,0,0) should have no white extraction: (255,0,0,0)."""
+async def test_rgb_pure_red_capped(light, mock_controller):
+    """Pure red (255,0,0) should be capped to (254,0,0)."""
     await light.async_turn_on(rgb_color=(255, 0, 0))
 
-    mock_controller.get_rgbw_commands.assert_called_once_with(255, 0, 0, 0)
-    assert light._attr_rgbw_color == (255, 0, 0, 0)
-    expected_cmds = [("RED", 255), ("GREEN", 0), ("BLUE", 0), ("WHITE", 0)]
+    mock_controller.get_rgbw_commands.assert_called_once_with(254, 0, 0, 0)
+    assert light._attr_rgb_color == (254, 0, 0)
+    expected_cmds = [("RED", 254), ("GREEN", 0), ("BLUE", 0), ("WHITE", 0)]
     mock_controller.async_send_commands.assert_awaited_once_with(expected_cmds)
 
 
 @pytest.mark.asyncio
 async def test_rgb_black_maps_to_all_zeros(light, mock_controller):
-    """Black (0,0,0) should map to (0,0,0,0)."""
+    """Black (0,0,0) should map to (0,0,0)."""
     await light.async_turn_on(rgb_color=(0, 0, 0))
 
     mock_controller.get_rgbw_commands.assert_called_once_with(0, 0, 0, 0)
-    assert light._attr_rgbw_color == (0, 0, 0, 0)
+    assert light._attr_rgb_color == (0, 0, 0)
     expected_cmds = [("RED", 0), ("GREEN", 0), ("BLUE", 0), ("WHITE", 0)]
     mock_controller.async_send_commands.assert_awaited_once_with(expected_cmds)
 
 
 @pytest.mark.asyncio
-async def test_rgbw_passthrough_unchanged(light, mock_controller):
-    """RGBW colors should be passed through without transformation."""
-    await light.async_turn_on(rgbw_color=(100, 200, 50, 128))
+async def test_rgbw_conversion_to_rgb(light, mock_controller):
+    """RGBW (100, 100, 100, 50) should be converted to RGB (150, 150, 150)."""
+    await light.async_turn_on(rgbw_color=(100, 100, 100, 50))
 
-    mock_controller.get_rgbw_commands.assert_called_once_with(100, 200, 50, 128)
-    assert light._attr_rgbw_color == (100, 200, 50, 128)
-    expected_cmds = [("RED", 100), ("GREEN", 200), ("BLUE", 50), ("WHITE", 128)]
+    # (100+50, 100+50, 100+50) = (150, 150, 150)
+    mock_controller.get_rgbw_commands.assert_called_once_with(150, 150, 150, 0)
+    assert light._attr_rgb_color == (150, 150, 150)
+    expected_cmds = [("RED", 150), ("GREEN", 150), ("BLUE", 150), ("WHITE", 0)]
     mock_controller.async_send_commands.assert_awaited_once_with(expected_cmds)
