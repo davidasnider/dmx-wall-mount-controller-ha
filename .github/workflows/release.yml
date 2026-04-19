@@ -23,8 +23,16 @@ jobs:
       - name: Check if Version Changed
         id: version_changed
         run: |
-          git fetch origin main --depth=2
-          PREV_VERSION=$(git show HEAD^1:custom_components/dmx_diodeled/manifest.json | jq -r .version || echo "none")
+          # Use github.event.before if available, otherwise fallback to HEAD^1
+          BEFORE_SHA="${{ github.event.before }}"
+          if [ -z "$BEFORE_SHA" ] || [ "$BEFORE_SHA" == "0000000000000000000000000000000000000000" ]; then
+            BEFORE_SHA="HEAD^1"
+          fi
+
+          # Ensure we have the before SHA available for git show
+          git fetch origin $BEFORE_SHA --depth=1 || git fetch origin main --depth=2
+
+          PREV_VERSION=$(git show $BEFORE_SHA:custom_components/dmx_diodeled/manifest.json | jq -r .version || echo "none")
           if [ "${{ steps.version.outputs.version }}" != "$PREV_VERSION" ]; then
             echo "changed=true" >> $GITHUB_OUTPUT
           else
