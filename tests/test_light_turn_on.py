@@ -98,7 +98,7 @@ async def test_rgb_mixed_color_no_extraction(light, mock_controller):
 
 @pytest.mark.asyncio
 async def test_rgb_pure_red_stays_red(light, mock_controller):
-    """Pure red (255,0,0) should remain (255,0,0,0)."""
+    """Pure red (255,0,0) should remain (255,0,0)."""
     await light.async_turn_on(rgb_color=(255, 0, 0))
 
     mock_controller.get_rgbw_commands.assert_called_once_with(255, 0, 0, 0)
@@ -109,7 +109,7 @@ async def test_rgb_pure_red_stays_red(light, mock_controller):
 
 @pytest.mark.asyncio
 async def test_rgb_black_maps_to_all_zeros(light, mock_controller):
-    """Black (0,0,0) should map to (0,0,0,0)."""
+    """Black (0,0,0) should map to (0,0,0)."""
     await light.async_turn_on(rgb_color=(0, 0, 0))
 
     mock_controller.get_rgbw_commands.assert_called_once_with(0, 0, 0, 0)

@@ -54,8 +54,8 @@ async def test_async_send_commands_chunking(
     mock_sleep, mock_open_connection, controller
 ):
     """Test that commands are chunked correctly at CMD_CHUNK_SIZE boundaries."""
-    # Create 20 mock commands (chunk size is 15 in const.py)
-    # We should see 2 connection opens and 2 writes.
+    # Create 20 mock commands. With the current chunk size of 1,
+    # we should see 20 connection opens and 20 writes.
 
     commands = [([0x08, 0x00], i) for i in range(20)]
 
