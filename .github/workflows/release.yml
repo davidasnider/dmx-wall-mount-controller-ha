@@ -16,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - name: Get Version
         id: version
         run: |
@@ -24,16 +26,15 @@ jobs:
       - name: Check if Version Changed
         id: version_changed
         run: |
-          # Use github.event.before if available, otherwise fallback to HEAD^1
-          BEFORE_SHA="${{ github.event.before }}"
-          if [ -z "$BEFORE_SHA" ] || [ "$BEFORE_SHA" == "0000000000000000000000000000000000000000" ]; then
-            BEFORE_SHA="HEAD^1"
+          # Default to changed=true for manual dispatch
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            exit 0
           fi
 
-          # Ensure we have the before SHA available for git show
-          git fetch origin $BEFORE_SHA --depth=1 || git fetch origin main --depth=2
-
-          PREV_VERSION=$(git show $BEFORE_SHA:custom_components/dmx_diodeled/manifest.json | jq -r .version || echo "none")
+          # For pushes, check if version changed vs previous commit
+          # fetch-depth: 2 ensures HEAD^1 is available
+          PREV_VERSION=$(git show HEAD^1:custom_components/dmx_diodeled/manifest.json | jq -r .version || echo "none")
           if [ "${{ steps.version.outputs.version }}" != "$PREV_VERSION" ]; then
             echo "changed=true" >> $GITHUB_OUTPUT
           else
