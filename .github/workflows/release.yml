@@ -20,8 +20,19 @@ jobs:
         run: |
           VERSION=$(jq -r .version custom_components/dmx_diodeled/manifest.json)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+      - name: Check if Version Changed
+        id: version_changed
+        run: |
+          git fetch origin main --depth=2
+          PREV_VERSION=$(git show HEAD^1:custom_components/dmx_diodeled/manifest.json | jq -r .version || echo "none")
+          if [ "${{ steps.version.outputs.version }}" != "$PREV_VERSION" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
       - name: Check if Tag Exists
         id: check_tag
+        if: steps.version_changed.outputs.changed == 'true'
         run: |
           if git ls-remote --tags origin "refs/tags/v${{ steps.version.outputs.version }}" | grep -q "refs/tags/"; then
             echo "exists=true" >> $GITHUB_OUTPUT
@@ -29,7 +40,7 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
       - name: Create Release
-        if: steps.check_tag.outputs.exists == 'false'
+        if: steps.version_changed.outputs.changed == 'true' && steps.check_tag.outputs.exists == 'false'
         run: |
           gh release create "v${{ steps.version.outputs.version }}" \
             --title "Release v${{ steps.version.outputs.version }}" \
