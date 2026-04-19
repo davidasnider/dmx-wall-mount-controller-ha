@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'custom_components/dmx_diodeled/manifest.json'
+  workflow_dispatch:
 
 permissions:
   contents: write
