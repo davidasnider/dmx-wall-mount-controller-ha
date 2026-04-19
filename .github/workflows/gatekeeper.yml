@@ -2,8 +2,9 @@ name: PR Gatekeeper
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    types: [opened, synchronize, reopened, labeled, unlabeled, closed]
     branches: [ "main" ]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -12,7 +13,7 @@ permissions:
 jobs:
   gatekeeper-check:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
     steps:
       - name: Check for approval label
         run: |
@@ -28,10 +29,48 @@ jobs:
   automerge:
     needs: [gatekeeper-check]
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
     steps:
       - name: Enable auto-merge for PR
         run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
           GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+
+  release:
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
+      (github.event_name == 'workflow_dispatch')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create Release if manifest modified
+        run: |
+          SHOULD_RELEASE=false
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            SHOULD_RELEASE=true
+            echo "Manual trigger, proceeding with release check."
+          elif gh pr view ${{ github.event.pull_request.number }} --json files --jq '.files[].path' | grep -q 'custom_components/dmx_diodeled/manifest.json'; then
+            SHOULD_RELEASE=true
+            echo "manifest.json modified in PR, proceeding with release check."
+          else
+            echo "Skipping release as no manifest changes were detected in the PR."
+          fi
+
+          if [[ "$SHOULD_RELEASE" == "true" ]]; then
+            VERSION=$(jq -r .version custom_components/dmx_diodeled/manifest.json)
+            
+            # Only create release if the tag doesn't exist
+            if ! git ls-remote --tags origin "refs/tags/v$VERSION" | grep -q "refs/tags/"; then
+              echo "Creating release for v$VERSION..."
+              TARGET="${{ github.event.pull_request.merge_commit_sha }}"
+              if [[ -z "$TARGET" ]]; then
+                TARGET="${{ github.sha }}"
+              fi
+              gh release create "v$VERSION" --target "$TARGET" --title "Release v$VERSION" --generate-notes
+            else
+              echo "Version v$VERSION already released, skipping."
+            fi
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
