@@ -1,6 +1,6 @@
 # DiodeLED DMX Controller for Home Assistant
 
-![Version](https://img.shields.io/badge/version-0.3.1-blue.svg)
+![Version](https://img.shields.io/badge/version-0.4.1-blue.svg)
 ![HA Integration](https://img.shields.io/badge/Home%20Assistant-Integration-28B9EA.svg)
 ![Local API](https://img.shields.io/badge/architecture-Local%20Push-success.svg)
 
