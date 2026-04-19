@@ -5,6 +5,7 @@ from typing import Any
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_RGB_COLOR,
+    ATTR_RGBW_COLOR,
     ATTR_EFFECT,
     ColorMode,
     LightEntity,
@@ -48,7 +49,7 @@ class DiodLEDLight(LightEntity):
         # State tracking (Optimistic)
         self._attr_is_on = False
         self._attr_brightness = 255
-        self._attr_rgb_color = (255, 255, 255)
+        self._attr_rgb_color = (254, 254, 254)
         self._attr_effect = None
         self._attr_effect_list = ["Rainbow"]
 
@@ -74,9 +75,27 @@ class DiodLEDLight(LightEntity):
             )
             send_power = False
 
+        if ATTR_RGBW_COLOR in kwargs:
+            # Conversion logic: Mix W into RGB as the hardware white channel is non-functional
+            r, g, b, w = kwargs[ATTR_RGBW_COLOR]
+            LOGGER.warning(
+                "RGBW color was requested for %s, but the hardware dedicated white channel "
+                "is non-functional. Converting to RGB by mixing white channel into RGB.",
+                self._attr_name,
+            )
+            kwargs[ATTR_RGB_COLOR] = (
+                min(255, r + w),
+                min(255, g + w),
+                min(255, b + w),
+            )
+
         if ATTR_RGB_COLOR in kwargs:
-            self._attr_rgb_color = kwargs[ATTR_RGB_COLOR]
-            r, g, b = self._attr_rgb_color
+            # Clamp values to 254 as hardware forbids 255.
+            # Storing clamped values so HA state reflects reality.
+            r, g, b = kwargs[ATTR_RGB_COLOR]
+            r, g, b = (min(r, 254), min(g, 254), min(b, 254))
+            self._attr_rgb_color = (r, g, b)
+
             LOGGER.debug(
                 "Setting RGB on %s to R:%s G:%s B:%s", self._attr_name, r, g, b
             )
