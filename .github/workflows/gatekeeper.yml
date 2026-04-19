@@ -50,12 +50,12 @@ jobs:
             # Only create release if the tag doesn't exist
             if ! git ls-remote --tags origin "refs/tags/v$VERSION" | grep -q "refs/tags/"; then
               echo "Creating release for v$VERSION..."
-              gh release create "v$VERSION" --title "Release v$VERSION" --generate-notes
+              gh release create "v$VERSION" --target "${{ github.event.pull_request.merge_commit_sha }}" --title "Release v$VERSION" --generate-notes
             else
               echo "Version v$VERSION already released, skipping."
             fi
           else
-            echo "No version change detected in manifest.json, skipping release."
+            echo "manifest.json was not modified in this PR, skipping release."
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
