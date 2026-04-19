@@ -78,7 +78,7 @@ class DiodLEDLight(LightEntity):
         if ATTR_RGBW_COLOR in kwargs:
             # Conversion logic: Mix W into RGB as the hardware white channel is non-functional
             r, g, b, w = kwargs[ATTR_RGBW_COLOR]
-            LOGGER.warning(
+            LOGGER.debug(
                 "RGBW color was requested for %s, but the hardware dedicated white channel "
                 "is non-functional. Converting to RGB by mixing white channel into RGB.",
                 self._attr_name,
