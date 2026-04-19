@@ -38,6 +38,9 @@ class DiodLEDController:
 
     def _build_packet(self, cmd_type: list[int], val: int) -> bytes:
         """Construct the 12-byte hex packet."""
+        # Cap value at 254. 255 is a forbidden character for this hardware.
+        val = min(val, 254)
+
         # Byte 7, 8, 9 are the command components
         # Checksum = (Byte 7 + Byte 8 + Byte 9) mod 256
         checksum = (cmd_type[0] + cmd_type[1] + val) % 256

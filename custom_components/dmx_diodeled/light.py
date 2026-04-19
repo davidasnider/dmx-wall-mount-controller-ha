@@ -4,7 +4,6 @@ from typing import Any
 
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
-    ATTR_RGBW_COLOR,
     ATTR_RGB_COLOR,
     ATTR_EFFECT,
     ColorMode,
@@ -36,8 +35,8 @@ class DiodLEDLight(LightEntity):
 
     _attr_has_entity_name = True
     _attr_should_poll = False
-    _attr_color_mode = ColorMode.RGBW
-    _attr_supported_color_modes = {ColorMode.RGBW}
+    _attr_color_mode = ColorMode.RGB
+    _attr_supported_color_modes = {ColorMode.RGB}
     _attr_supported_features = LightEntityFeature.EFFECT
 
     def __init__(self, controller, name, entry_id):
@@ -49,7 +48,7 @@ class DiodLEDLight(LightEntity):
         # State tracking (Optimistic)
         self._attr_is_on = False
         self._attr_brightness = 255
-        self._attr_rgbw_color = (255, 255, 255, 255)
+        self._attr_rgb_color = (255, 255, 255)
         self._attr_effect = None
         self._attr_effect_list = ["Rainbow"]
 
@@ -73,36 +72,16 @@ class DiodLEDLight(LightEntity):
             commands.append(
                 self._controller.get_brightness_command(self._attr_brightness)
             )
-            send_power = False  # Brightness command might already trigger light?
-            # PRD implies separate frames. We send them as requested.
-
-        if ATTR_RGBW_COLOR in kwargs:
-            self._attr_rgbw_color = kwargs[ATTR_RGBW_COLOR]
-            r, g, b, w = self._attr_rgbw_color
-            LOGGER.debug(
-                "Setting RGBW on %s to R:%s G:%s B:%s W:%s", self._attr_name, r, g, b, w
-            )
-            commands.extend(self._controller.get_rgbw_commands(r, g, b, w))
             send_power = False
-        elif ATTR_RGB_COLOR in kwargs:
-            r, g, b = kwargs[ATTR_RGB_COLOR]
-            # Extract the white component from the RGB values — the minimum
-            # of R, G, B represents light that can be produced by the
-            # dedicated white LED channel instead.
-            w = min(r, g, b)
-            r -= w
-            g -= w
-            b -= w
-            self._attr_rgbw_color = (r, g, b, w)
+
+        if ATTR_RGB_COLOR in kwargs:
+            self._attr_rgb_color = kwargs[ATTR_RGB_COLOR]
+            r, g, b = self._attr_rgb_color
             LOGGER.debug(
-                "Setting Transformed RGB on %s to R:%s G:%s B:%s W:%s",
-                self._attr_name,
-                r,
-                g,
-                b,
-                w,
+                "Setting RGB on %s to R:%s G:%s B:%s", self._attr_name, r, g, b
             )
-            commands.extend(self._controller.get_rgbw_commands(r, g, b, w))
+            # Send R, G, B commands. White is set to 0 as we use RGB mixing for white.
+            commands.extend(self._controller.get_rgbw_commands(r, g, b, 0))
             send_power = False
 
         if ATTR_EFFECT in kwargs:
