@@ -52,7 +52,7 @@ async def main():
     cmd_bright.add_argument(
         "val",
         type=int,
-        help="Brightness value in HA range (0-255). Will be mapped to 2-8.",
+        help="Brightness value in HA range (0-255). Will be mapped to 1-8.",
     )
 
     # Effect
