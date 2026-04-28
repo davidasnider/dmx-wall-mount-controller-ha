@@ -28,13 +28,33 @@ The following is a list of features and hardware limits that need to be tested a
 **Objective:** To determine whether Home Assistant should connect and disconnect for every discrete command to avoid being unceremoniously dropped by the chip, or if it needs to send empty keep-alive pings to hold the socket open indefinitely.
 
 ## Feature 4: Full Color Wheel Spectrum Mapping
+**Status:** ✅ TESTED — Hardware limit confirmed. 254-value cap.
+
 **Image Analysis:** The screenshot from Turn 57 shows that when the color wheel was operated, it generated a payload of 55 99 7e bd 01 ff 01 01 4f 51 aa aa.
-**Test to Execute:** Send raw payloads that fix Byte 7 and 8 as 01 01, while incrementing Byte 9 from 0x00 up to 0xFF in steps of 0x10, and calculate the checksum accordingly.
+
+**Test Executed:** Send raw payloads that fix Byte 7 and 8 as 01 01, while incrementing Byte 9 from 0x00 up to 0xFF in steps of 0x10, and calculate the checksum accordingly.
+
+**Result:**
+- The hardware refuses to execute any color command where the value byte (Byte 9) is exactly `0xFF` (255).
+- `0x00` through `0xFE` (254) work perfectly.
+
+**Conclusion:** The maximum color intensity is 254, not 255. The driver has been updated to cap all color values at 254.
+
 **Objective:** To check if the DMX processor perfectly wraps a standard continuous 360-degree Hue/Saturation color wheel across a standard 0 to 255 decimal scale on that command type, mapping colors predictably.
 
 ## Feature 5: Packet Throttle & Buffer Overflow Limit
+**Status:** ✅ TESTED — Hardware requires chunking and delays.
+
 **Image Analysis:** The screenshot from Turn 9 reveals the "Serial Port Parameters" set to a baud rate of 38400. This means that any heavy stream of Wi-Fi traffic targeting the device over the network has to funnel through a relatively slow physical serial bus on the board.
-**Test to Execute:** Create a loop to send non-impactful state requests or brightness queries in increasing frequency (e.g., 5 per second, then 10, then 20).
+
+**Test Executed:** Create a loop to send non-impactful state requests or brightness queries in increasing frequency (e.g., 5 per second, then 10, then 20).
+
+**Result:**
+- The hardware requires exactly one TCP connection per 12-byte command payload. Sending multiple concatenated payloads in one stream fails.
+- A delay of 0.1s is required between socket calls.
+
+**Conclusion:** The driver has been updated to send commands in chunks of 1 with a 0.1s delay between payloads.
+
 **Objective:** To find the breaking point of the device's light-stack memory buffer. Community accounts for Sunricher hardware suggest that sending packets too quickly can easily crash the device, requiring a full hard power-cycle to regain control. Finding this line determines the exact debouncer or rate-limiting milliseconds you must hardcode into your driver.
 
 ## Feature 6: Zone Command Identification (Testing Byte 5)
