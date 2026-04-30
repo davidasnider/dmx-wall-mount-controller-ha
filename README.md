@@ -60,7 +60,7 @@ uv run python test_controller_cli.py power off
 
 ### 2. Multi-Channel RGBW Testing
 
-The script accepts arguments across a continuous 0-255 bounds check for Red, Green, Blue, and White channels respectfully.
+The script accepts arguments across a continuous 0-255 bounds check for Red, Green, Blue, and White channels respectfully. Please note that while the script accepts `0-255`, the driver enforces a maximum intensity cap of `254` due to hardware limitations on the color channels.
 
 Full Red:
 ```bash
@@ -121,6 +121,8 @@ If the integration doesn't seem to be working, here are the steps to isolate the
 
 ### 1. Close the Mobile App
 The hardware controller only supports **one active TCP connection at a time**. If you have the official TouchDial mobile app open on your phone, Home Assistant will be blocked from sending commands. Force-close the app and try again.
+
+Additionally, the hardware requires commands to be sent individually (chunk size of 1) with a 0.1s delay between payloads. The integration handles this throttling and chunking automatically.
 
 ### 2. Verify Basic Connectivity with the CLI
 Use the included `test_controller_cli.py` script to bypass Home Assistant entirely and test the direct network connection from your computer:

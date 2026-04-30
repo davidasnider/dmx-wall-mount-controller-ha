@@ -39,7 +39,9 @@ async def main():
     cmd_power.add_argument("state", choices=["on", "off"], help="State to set")
 
     # RGBW
-    cmd_rgbw = subparsers.add_parser("rgbw", help="Set RGBW colors (0-255)")
+    cmd_rgbw = subparsers.add_parser(
+        "rgbw", help="Set RGBW colors (0-255). Values are capped at 254 by the driver."
+    )
     cmd_rgbw.add_argument("r", type=int, help="Red channel")
     cmd_rgbw.add_argument("g", type=int, help="Green channel")
     cmd_rgbw.add_argument("b", type=int, help="Blue channel")
