@@ -57,22 +57,30 @@ The following is a list of features and hardware limits that need to be tested a
 
 **Objective:** To find the breaking point of the device's light-stack memory buffer. Community accounts for Sunricher hardware suggest that sending packets too quickly can easily crash the device, requiring a full hard power-cycle to regain control. Finding this line determines the exact debouncer or rate-limiting milliseconds you must hardcode into your driver.
 
-## Feature 6: Zone Command Identification (Testing Byte 5)
+## Feature 6: Dedicated White Channel Functionality
+**Status:** ✅ TESTED — Hardware limit confirmed. White channel is non-functional.
+
+**Context:** The hardware defines a command type for the dedicated White channel (`08 4B`).
+**Test Executed:** Sent varying intensities to the White channel while leaving RGB channels at zero.
+**Result:** The hardware did not respond to the White channel commands.
+**Conclusion:** The dedicated White channel is broken or unsupported on this controller. The driver has been updated to intercept RGBW commands, clamp to 254, and convert the White value into RGB mixing (adding it to R, G, and B) to simulate white light using the color channels.
+
+## Feature 7: Zone Command Identification (Testing Byte 5)
 **Context:** In all of the 12-byte payloads you successfully captured and copied as a hex stream (such as the Power ON command 55997ebd01ff0212abbfaaaa), Byte 5 was consistently 01. Since your specific controller model (DI-DMX-WIFI-WMUS-3Z-WH) is rated for 3 independent zones, it is highly probable that 01 represents Zone 1.
 **Test to Execute:** Send raw TCP packets to port 8899 where you keep the frame exactly the same as your captured Power ON or Power OFF commands, but change Byte 5 from 01 to 02 and then to 03.
 **Objective:** To verify if the DMX processor accepts sequential integers in Byte 5 to route instructions to independent physical zones.
 
-## Feature 7: "All Zones" Broadcast Command
+## Feature 8: "All Zones" Broadcast Command
 **Context:** The installation guide for your device states that a short press of the master power button on the glass panel toggles all zones and channels ON or OFF simultaneously.
 **Test to Execute:** If changing Byte 5 to 01, 02, and 03 maps successfully to zones 1, 2, and 3, try testing a packet with 00 or 04 in Byte 5 to see if it acts as a broadcast byte that triggers a global state change on all decoders at once.
 **Objective:** To enable the custom component to mirror the physical controller's capability to fire a single packet that affects all DMX universes connected to the bridge.
 
-## Feature 8: Remote ID Addressing for Multi-Zone Control
+## Feature 9: Remote ID Addressing for Multi-Zone Control
 **Context:** In similar 2.4 GHz and Wi-Fi-to-RF lighting protocols (like Mi-Light or some Sunricher OEM remotes), multi-zone control is occasionally achieved by altering the paired device/remote identifier slightly instead of using a specific zone byte. In your captures, Bytes 2, 3, and 4 are consistently fixed as 99 7e bd.
 **Test to Execute:** Keeping the rest of the payload intact, test incrementing or decrementing the last byte of the remote identifier (e.g., changing bd to be or bc), and send a standard Power ON command to see if a different receiver zone reacts.
 **Objective:** To determine if zones are mapped via separate remote ID definitions or if they reside within a single ID's address space.
 
-## Feature 9: Zone Pairing Frame Identification
+## Feature 10: Zone Pairing Frame Identification
 **Context:** Sunricher hardware typically requires a "pairing" or "learning" sequence to bind a physical zone on the remote to an actuator or receiver. This pairing is initiated in the app by selecting a zone slot and pressing a button.
 **Test to Execute:** Put a Wi-Fi DMX receiver into learning mode, open your mobile app, and execute the pairing process for a new zone while listening via your UniFi switch port mirror.
 **Objective:** To capture any custom initialization or pairing packets that the app issues to link a zone, which could allow the Home Assistant plugin to natively pair new receivers to the hub on its own without needing the mobile app.
