@@ -62,6 +62,8 @@ uv run python test_controller_cli.py power off
 
 The script accepts arguments across a continuous 0-255 bounds check for Red, Green, Blue, and White channels respectfully. Please note that while the script accepts `0-255`, the driver enforces a maximum intensity cap of `254` due to hardware limitations on the color channels.
 
+Additionally, the hardware's dedicated White channel (`CMD_TYPE_WHITE = [0x08, 0x4B]`) is non-functional. The driver automatically compensates for this by converting requested White values into RGB mixing (adding the White value to the Red, Green, and Blue channels, capped at 254).
+
 Full Red:
 ```bash
 uv run python test_controller_cli.py rgbw 255 0 0 0
