@@ -47,6 +47,8 @@ We have included a command-line interface test script `test_controller_cli.py` w
 
 Requires `uv` installed for dependency abstraction.
 
+*Note: The CLI script and the integration enforce hardware-specific constraints (e.g., maximum RGB color intensities of 254 and a 0.1s socket throttle delay) as verified in hardware testing.*
+
 ### 1. Power State Testing
 
 Turn the controller ON:
