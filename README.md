@@ -151,3 +151,5 @@ logger:
 ```
 
 Restart Home Assistant, attempt to turn the light on/off from the dashboard, and then check `Settings` > `System` > `Logs` (or view the `home-assistant.log` file directly). You will see the exact connection attempts and byte arrays being sent.
+
+*Note: As thoroughly tested, the hardware limits are verified; full-range color intensity mapping (0x00 to 0xFF) was tested and found unsupported, strictly wrapping modulo 9 or capping at 254 depending on the command type.*
