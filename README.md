@@ -41,6 +41,12 @@ Once the integration is installed (via HACS or manually) and Home Assistant has 
    - **Name:** A friendly name for your controller (default is "DiodeLED DMX").
 6. Click **Submit**. Home Assistant will immediately add the controller and expose a light entity (e.g., `light.diodeled_dmx`) that you can add to your dashboards.
 
+**Supported Entity Features:**
+- **Power:** On/Off control.
+- **Brightness:** 0-255 scaling (automatically mapped to the hardware's 8 native steps).
+- **Color:** Full RGB and RGBW color wheel support (White channel intensities are intelligently mixed into the RGB spectrum since the hardware's dedicated white channel is non-functional).
+- **Effects:** Built-in "Rainbow" animation effect selectable from the dashboard.
+
 ## Local Testing & Development
 
 We have included a command-line interface test script `test_controller_cli.py` which allows you to send packet frames directly to the local hardware outside of the Home Assistant environment. This script will translate commands instantly to the required 12-byte hex stream format.
