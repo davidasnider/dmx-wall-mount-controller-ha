@@ -40,7 +40,7 @@ class DiodLEDLight(LightEntity):
     _attr_supported_color_modes = {ColorMode.RGB}
     _attr_supported_features = LightEntityFeature.EFFECT
 
-    def __init__(self, controller, name, entry_id):
+    def __init__(self, controller: Any, name: str, entry_id: str) -> None:
         """Initialize the light."""
         self._controller = controller
         self._attr_name = name
