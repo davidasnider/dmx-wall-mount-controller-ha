@@ -29,7 +29,7 @@ from .const import (
 class DiodLEDController:
     """Handle communication with the DiodeLED DMX Controller."""
 
-    def __init__(self, ip, port):
+    def __init__(self, ip: str, port: int) -> None:
         """Initialize the controller."""
         self.ip = ip
         self.port = port
@@ -57,7 +57,7 @@ class DiodLEDController:
 
         return bytes(packet)
 
-    async def async_send_commands(self, commands: list[tuple[list[int], int]]):
+    async def async_send_commands(self, commands: list[tuple[list[int], int]]) -> None:
         """Send a batch of commands to the controller, max CMD_CHUNK_SIZE per network call."""
         chunk_size = CMD_CHUNK_SIZE
 
@@ -107,7 +107,7 @@ class DiodLEDController:
                     )
                     raise
 
-    async def async_send_command(self, cmd_type: list[int], val: int):
+    async def async_send_command(self, cmd_type: list[int], val: int) -> None:
         """Send a single command to the controller with rate limiting."""
         await self.async_send_commands([(cmd_type, val)])
 
@@ -145,19 +145,19 @@ class DiodLEDController:
         val = max(SPEED_MIN, min(SPEED_MAX, speed))
         return (CMD_TYPE_SPEED, val)
 
-    async def async_set_power(self, on: bool):
+    async def async_set_power(self, on: bool) -> None:
         """Turn the light on or off."""
         await self.async_send_commands([self.get_power_command(on)])
 
-    async def async_set_brightness(self, ha_brightness: int):
+    async def async_set_brightness(self, ha_brightness: int) -> None:
         """Set master brightness (map 0-255 to 0x01-0x08)."""
         await self.async_send_commands([self.get_brightness_command(ha_brightness)])
 
-    async def async_set_rgbw(self, r: int, g: int, b: int, w: int):
+    async def async_set_rgbw(self, r: int, g: int, b: int, w: int) -> None:
         """Set RGBW values."""
         await self.async_send_commands(self.get_rgbw_commands(r, g, b, w))
 
-    async def async_set_rainbow(self, on: bool):
+    async def async_set_rainbow(self, on: bool) -> None:
         """Activate rainbow mode."""
         cmd = self.get_rainbow_command(on)
         if cmd:
@@ -167,6 +167,6 @@ class DiodLEDController:
             # PRD doesn't mention rainbow off specifically.
             pass
 
-    async def async_set_speed(self, speed: int):
+    async def async_set_speed(self, speed: int) -> None:
         """Set pattern speed (1-10)."""
         await self.async_send_commands([self.get_speed_command(speed)])
