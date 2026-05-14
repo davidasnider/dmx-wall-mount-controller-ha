@@ -170,6 +170,3 @@ class DiodLEDController:
     async def async_set_speed(self, speed: int) -> None:
         """Set pattern speed (1-10)."""
         await self.async_send_commands([self.get_speed_command(speed)])
-
-
-# test trigger
