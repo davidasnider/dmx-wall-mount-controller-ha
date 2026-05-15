@@ -40,7 +40,9 @@ async def main():
 
     # RGBW
     cmd_rgbw = subparsers.add_parser(
-        "rgbw", help="Set RGBW colors (0-255). Values are capped at 254 by the driver."
+        "rgbw",
+        help="Set RGBW colors (0-255). Values are capped at 254 by the driver. "
+        "The hardware white channel is non-functional; white values are mixed into RGB.",
     )
     cmd_rgbw.add_argument("r", type=int, help="Red channel")
     cmd_rgbw.add_argument("g", type=int, help="Green channel")
