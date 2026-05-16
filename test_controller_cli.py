@@ -42,7 +42,8 @@ async def main():
     cmd_rgbw = subparsers.add_parser(
         "rgbw",
         help="Set RGBW colors (0-255). Values are capped at 254 by the driver. "
-        "The hardware white channel is non-functional; white values are mixed into RGB.",
+        "Note: The hardware white channel is non-functional. Unlike the HA integration which "
+        "mixes white into RGB, this CLI script sends the raw white channel command for testing.",
     )
     cmd_rgbw.add_argument("r", type=int, help="Red channel")
     cmd_rgbw.add_argument("g", type=int, help="Green channel")

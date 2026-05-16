@@ -72,7 +72,7 @@ uv run python test_controller_cli.py power off
 
 The script accepts arguments across a continuous 0-255 bounds check for Red, Green, Blue, and White channels respectfully. Please note that while the script accepts `0-255`, the driver enforces a maximum intensity cap of `254` due to hardware limitations on the color channels.
 
-Additionally, the hardware's dedicated White channel (`CMD_TYPE_WHITE = [0x08, 0x4B]`) is non-functional. The driver automatically compensates for this by converting requested White values into RGB mixing (adding the White value to the Red, Green, and Blue channels, capped at 254).
+Additionally, the hardware's dedicated White channel (`CMD_TYPE_WHITE = [0x08, 0x4B]`) is non-functional. While the Home Assistant integration automatically compensates for this by converting requested White values into RGB mixing, the CLI script sends the raw White channel command directly to the hardware for testing purposes.
 
 Full Red:
 ```bash
@@ -82,9 +82,9 @@ Cyan (Full Green + Full Blue):
 ```bash
 uv run python test_controller_cli.py rgbw 0 255 255 0
 ```
-Muted Pastel Yellow (Red + Green + 50% White wash):
+Raw White Channel Test (will likely have no effect due to hardware limitations):
 ```bash
-uv run python test_controller_cli.py rgbw 255 255 0 128
+uv run python test_controller_cli.py rgbw 0 0 0 255
 ```
 
 ### 3. Master Brightness Mapping
