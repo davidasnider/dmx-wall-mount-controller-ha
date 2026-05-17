@@ -1,0 +1,145 @@
+diff --git a/README.md b/README.md
+index 5dc7734..5b841bb 100644
+--- a/README.md
++++ b/README.md
+@@ -55,6 +55,8 @@ Requires `uv` installed for dependency abstraction.
+
+ *Note: The CLI script and the integration enforce hardware-specific constraints (e.g., maximum RGB color intensities of 254 and a 0.1s socket throttle delay) as verified in hardware testing.*
+
++*Note: The codebase has been fully annotated with Python type hints to improve developer experience, tooling support, and maintainability.*
++
+ ### 1. Power State Testing
+
+ Turn the controller ON:
+@@ -70,7 +72,7 @@ uv run python test_controller_cli.py power off
+
+ The script accepts arguments across a continuous 0-255 bounds check for Red, Green, Blue, and White channels respectfully. Please note that while the script accepts `0-255`, the driver enforces a maximum intensity cap of `254` due to hardware limitations on the color channels.
+
+-Additionally, the hardware's dedicated White channel (`CMD_TYPE_WHITE = [0x08, 0x4B]`) is non-functional. The driver automatically compensates for this by converting requested White values into RGB mixing (adding the White value to the Red, Green, and Blue channels, capped at 254).
++Additionally, the hardware's dedicated White channel (`CMD_TYPE_WHITE = [0x08, 0x4B]`) is non-functional. While the Home Assistant integration automatically compensates for this by converting requested White values into RGB mixing, the CLI script sends the raw White channel command directly to the hardware for testing purposes.
+
+ Full Red:
+ ```bash
+@@ -80,9 +82,9 @@ Cyan (Full Green + Full Blue):
+ ```bash
+ uv run python test_controller_cli.py rgbw 0 255 255 0
+ ```
+-Muted Pastel Yellow (Red + Green + 50% White wash):
++Raw White Channel Test (will likely have no effect due to hardware limitations):
+ ```bash
+-uv run python test_controller_cli.py rgbw 255 255 0 128
++uv run python test_controller_cli.py rgbw 0 0 0 255
+ ```
+
+ ### 3. Master Brightness Mapping
+diff --git a/custom_components/dmx_diodeled/dmx_controller.py b/custom_components/dmx_diodeled/dmx_controller.py
+index c9da681..b711eb5 100644
+--- a/custom_components/dmx_diodeled/dmx_controller.py
++++ b/custom_components/dmx_diodeled/dmx_controller.py
+@@ -29,7 +29,7 @@ from .const import (
+ class DiodLEDController:
+     """Handle communication with the DiodeLED DMX Controller."""
+
+-    def __init__(self, ip, port):
++    def __init__(self, ip: str, port: int) -> None:
+         """Initialize the controller."""
+         self.ip = ip
+         self.port = port
+@@ -57,7 +57,7 @@ class DiodLEDController:
+
+         return bytes(packet)
+
+-    async def async_send_commands(self, commands: list[tuple[list[int], int]]):
++    async def async_send_commands(self, commands: list[tuple[list[int], int]]) -> None:
+         """Send a batch of commands to the controller, max CMD_CHUNK_SIZE per network call."""
+         chunk_size = CMD_CHUNK_SIZE
+
+@@ -107,7 +107,7 @@ class DiodLEDController:
+                     )
+                     raise
+
+-    async def async_send_command(self, cmd_type: list[int], val: int):
++    async def async_send_command(self, cmd_type: list[int], val: int) -> None:
+         """Send a single command to the controller with rate limiting."""
+         await self.async_send_commands([(cmd_type, val)])
+
+@@ -145,19 +145,19 @@ class DiodLEDController:
+         val = max(SPEED_MIN, min(SPEED_MAX, speed))
+         return (CMD_TYPE_SPEED, val)
+
+-    async def async_set_power(self, on: bool):
++    async def async_set_power(self, on: bool) -> None:
+         """Turn the light on or off."""
+         await self.async_send_commands([self.get_power_command(on)])
+
+-    async def async_set_brightness(self, ha_brightness: int):
++    async def async_set_brightness(self, ha_brightness: int) -> None:
+         """Set master brightness (map 0-255 to 0x01-0x08)."""
+         await self.async_send_commands([self.get_brightness_command(ha_brightness)])
+
+-    async def async_set_rgbw(self, r: int, g: int, b: int, w: int):
++    async def async_set_rgbw(self, r: int, g: int, b: int, w: int) -> None:
+         """Set RGBW values."""
+         await self.async_send_commands(self.get_rgbw_commands(r, g, b, w))
+
+-    async def async_set_rainbow(self, on: bool):
++    async def async_set_rainbow(self, on: bool) -> None:
+         """Activate rainbow mode."""
+         cmd = self.get_rainbow_command(on)
+         if cmd:
+@@ -167,6 +167,6 @@ class DiodLEDController:
+             # PRD doesn't mention rainbow off specifically.
+             pass
+
+-    async def async_set_speed(self, speed: int):
++    async def async_set_speed(self, speed: int) -> None:
+         """Set pattern speed (1-10)."""
+         await self.async_send_commands([self.get_speed_command(speed)])
+diff --git a/custom_components/dmx_diodeled/light.py b/custom_components/dmx_diodeled/light.py
+index 90367ef..3cfc9a0 100644
+--- a/custom_components/dmx_diodeled/light.py
++++ b/custom_components/dmx_diodeled/light.py
+@@ -40,7 +40,7 @@ class DiodLEDLight(LightEntity):
+     _attr_supported_color_modes = {ColorMode.RGB}
+     _attr_supported_features = LightEntityFeature.EFFECT
+
+-    def __init__(self, controller, name, entry_id):
++    def __init__(self, controller: Any, name: str, entry_id: str) -> None:
+         """Initialize the light."""
+         self._controller = controller
+         self._attr_name = name
+diff --git a/test_controller_cli.py b/test_controller_cli.py
+index 45c5d59..d1b05e1 100644
+--- a/test_controller_cli.py
++++ b/test_controller_cli.py
+@@ -40,7 +40,10 @@ async def main():
+
+     # RGBW
+     cmd_rgbw = subparsers.add_parser(
+-        "rgbw", help="Set RGBW colors (0-255). Values are capped at 254 by the driver."
++        "rgbw",
++        help="Set RGBW colors (0-255). Values are capped at 254 by the driver. "
++        "Note: The hardware white channel is non-functional. Unlike the HA integration which "
++        "mixes white into RGB, this CLI script sends the raw white channel command for testing.",
+     )
+     cmd_rgbw.add_argument("r", type=int, help="Red channel")
+     cmd_rgbw.add_argument("g", type=int, help="Green channel")
+diff --git a/uv.lock b/uv.lock
+index 6245696..d38378a 100644
+--- a/uv.lock
++++ b/uv.lock
+@@ -385,11 +385,11 @@ wheels = [
+
+ [[package]]
+ name = "urllib3"
+-version = "2.6.3"
++version = "2.7.0"
+ source = { registry = "https://pypi.org/simple" }
+-sdist = { url = "https://files.pythonhosted.org/packages/c7/24/5f1b3bdffd70275f6661c76461e25f024d5a38a46f04aaca912426a2b1d3/urllib3-2.6.3.tar.gz", hash = "sha256:1b62b6884944a57dbe321509ab94fd4d3b307075e0c2eae991ac71ee15ad38ed", size = 435556, upload-time = "2026-01-07T16:24:43.925Z" }
++sdist = { url = "https://files.pythonhosted.org/packages/53/0c/06f8b233b8fd13b9e5ee11424ef85419ba0d8ba0b3138bf360be2ff56953/urllib3-2.7.0.tar.gz", hash = "sha256:231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c", size = 433602, upload-time = "2026-05-07T16:13:18.596Z" }
+ wheels = [
+-    { url = "https://files.pythonhosted.org/packages/39/08/aaaad47bc4e9dc8c725e68f9d04865dbcb2052843ff09c97b08904852d84/urllib3-2.6.3-py3-none-any.whl", hash = "sha256:bf272323e553dfb2e87d9bfd225ca7b0f467b919d7bbd355436d3fd37cb0acd4", size = 131584, upload-time = "2026-01-07T16:24:42.685Z" },
++    { url = "https://files.pythonhosted.org/packages/7f/3e/5db95bcf282c52709639744ca2a8b149baccf648e39c8cc87553df9eae0c/urllib3-2.7.0-py3-none-any.whl", hash = "sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897", size = 131087, upload-time = "2026-05-07T16:13:17.151Z" },
+ ]
+
+ [[package]]
