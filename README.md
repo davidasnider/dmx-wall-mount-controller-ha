@@ -134,7 +134,7 @@ If the integration doesn't seem to be working, here are the steps to isolate the
 ### 1. Close the Mobile App
 The hardware controller only supports **one active TCP connection at a time**. If you have the official TouchDial mobile app open on your phone, Home Assistant will be blocked from sending commands. Force-close the app and try again.
 
-Additionally, the hardware requires commands to be sent individually (chunk size of 1) with a 0.1s delay between payloads. The integration handles this throttling and chunking automatically.
+Additionally, the hardware requires commands to be sent individually (chunk size of 1) with a 0.1s delay between payloads. The integration handles this throttling and chunking automatically (configured via `THROTTLE_DELAY` and `CMD_CHUNK_SIZE` in `const.py`).
 
 ### 2. Verify Basic Connectivity with the CLI
 Use the included `test_controller_cli.py` script to bypass Home Assistant entirely and test the direct network connection from your computer:
