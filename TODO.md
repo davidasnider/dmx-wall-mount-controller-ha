@@ -63,7 +63,7 @@ The following is a list of features and hardware limits that need to be tested a
 **Context:** The hardware defines a command type for the dedicated White channel (`08 4B`).
 **Test Executed:** Sent varying intensities to the White channel while leaving RGB channels at zero.
 **Result:** The hardware did not respond to the White channel commands.
-**Conclusion:** The dedicated White channel is broken or unsupported on this controller. The driver has been updated to intercept RGBW commands, clamp to 254, and convert the White value into RGB mixing (adding it to R, G, and B) to simulate white light using the color channels.
+**Conclusion:** The dedicated White channel is broken or unsupported on this controller. While the Home Assistant integration automatically compensates for this by converting requested White values into RGB mixing, the CLI script sends the raw White channel command directly to the hardware for testing purposes.
 
 ## Feature 7: Zone Command Identification (Testing Byte 5)
 **Context:** In all of the 12-byte payloads you successfully captured and copied as a hex stream (such as the Power ON command 55997ebd01ff0212abbfaaaa), Byte 5 was consistently 01. Since your specific controller model (DI-DMX-WIFI-WMUS-3Z-WH) is rated for 3 independent zones, it is highly probable that 01 represents Zone 1.
