@@ -127,6 +127,14 @@ uv run python test_controller_cli.py speed 10
 > Example (Custom IP): `uv run python test_controller_cli.py --ip 192.168.1.150 power on`
 > Example (Custom IP and Port): `uv run python test_controller_cli.py --ip 192.168.1.150 --port 8900 effect rainbow`
 
+### 5. Running the Test Suite
+
+This project includes a comprehensive suite of unit tests built with `pytest`. To run the tests locally and ensure all functionality is working as expected:
+
+```bash
+uv run pytest tests/
+```
+
 ## Troubleshooting & Debugging
 
 If the integration doesn't seem to be working, here are the steps to isolate the problem:
@@ -159,5 +167,6 @@ logger:
 ```
 
 Restart Home Assistant, attempt to turn the light on/off from the dashboard, and then check `Settings` > `System` > `Logs` (or view the `home-assistant.log` file directly). You will see the exact connection attempts and byte arrays being sent.
+
 
 *Note: As thoroughly tested, the hardware limits are verified; full-range color intensity mapping (0x00 to 0xFF) was tested and found unsupported, strictly wrapping modulo 9 or capping at 254 depending on the command type.*
