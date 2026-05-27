@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 from custom_components.dmx_diodeled.dmx_controller import DiodLEDController  # noqa: E402
 
 
-async def main():
+async def main() -> None:
     parser = argparse.ArgumentParser(description="DiodeLED DMX CLI Tester")
     parser.add_argument(
         "--ip",
