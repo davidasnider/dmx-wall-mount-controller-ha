@@ -2,6 +2,7 @@ import sys
 import os
 import unittest.mock
 import pytest
+from typing import Any
 
 # Mock Home Assistant modules so tests can run without the full core platform installed
 sys.modules["homeassistant"] = unittest.mock.MagicMock()
@@ -25,21 +26,21 @@ from custom_components.dmx_diodeled.const import (  # noqa: E402
 
 
 @pytest.fixture
-def controller():
+def controller() -> DiodLEDController:
     return DiodLEDController("127.0.0.1", 8899)
 
 
-def test_power_on_framing(controller):
+def test_power_on_framing(controller: DiodLEDController) -> None:
     packet_on = controller._build_packet(CMD_TYPE_POWER, VAL_POWER_ON)
     assert packet_on.hex() == "55997ebd01ff0212abbfaaaa"  # pragma: allowlist secret
 
 
-def test_power_off_framing(controller):
+def test_power_off_framing(controller: DiodLEDController) -> None:
     packet_off = controller._build_packet(CMD_TYPE_POWER, VAL_POWER_OFF)
     assert packet_off.hex() == "55997ebd01ff0212a9bdaaaa"  # pragma: allowlist secret
 
 
-def test_checksum_calculation(controller):
+def test_checksum_calculation(controller: DiodLEDController) -> None:
     # CMD_TYPE_RED: [0x08, 0x48], Val: 0xFF
     # Value is capped at 0xFE (254).
     # Sum: 0x08 + 0x48 + 0xFE = 0x14E. 0x14E % 256 = 0x4E
@@ -51,8 +52,8 @@ def test_checksum_calculation(controller):
 @unittest.mock.patch("asyncio.open_connection")
 @unittest.mock.patch("asyncio.sleep")
 async def test_async_send_commands_chunking(
-    mock_sleep, mock_open_connection, controller
-):
+    mock_sleep: Any, mock_open_connection: Any, controller: DiodLEDController
+) -> None:
     """Test that commands are chunked correctly at CMD_CHUNK_SIZE boundaries."""
     # Create 20 mock commands. With the current chunk size of 1,
     # we should see 20 connection opens and 20 writes.
