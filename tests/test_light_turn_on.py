@@ -2,6 +2,7 @@ import sys
 import os
 import unittest.mock
 import pytest
+from typing import Any
 
 # Mock Home Assistant modules so tests can run without the full core platform installed
 sys.modules["homeassistant"] = unittest.mock.MagicMock()
@@ -41,7 +42,7 @@ from custom_components.dmx_diodeled.light import DiodLEDLight  # noqa: E402
 
 
 @pytest.fixture
-def mock_controller():
+def mock_controller() -> Any:
     """Create a mock controller that tracks calls."""
     controller = unittest.mock.AsyncMock()
     # Mock the synchronous command generators since they are called directly
@@ -69,13 +70,13 @@ def mock_controller():
 
 
 @pytest.fixture
-def light(mock_controller):
+def light(mock_controller: Any) -> DiodLEDLight:
     """Create a DiodLEDLight instance with a mock controller."""
     return DiodLEDLight(mock_controller, "Test Light", "test_entry_id")
 
 
 @pytest.mark.asyncio
-async def test_rgb_pure_white_capped(light, mock_controller):
+async def test_rgb_pure_white_capped(light: DiodLEDLight, mock_controller: Any) -> None:
     """Pure white RGB (255,255,255) should be capped to (254, 254, 254)."""
     await light.async_turn_on(rgb_color=(255, 255, 255))
 
@@ -86,7 +87,9 @@ async def test_rgb_pure_white_capped(light, mock_controller):
 
 
 @pytest.mark.asyncio
-async def test_rgb_mixed_color_no_extraction(light, mock_controller):
+async def test_rgb_mixed_color_no_extraction(
+    light: DiodLEDLight, mock_controller: Any
+) -> None:
     """Mixed RGB values should NOT extract a W component."""
     await light.async_turn_on(rgb_color=(200, 100, 50))
 
@@ -97,7 +100,7 @@ async def test_rgb_mixed_color_no_extraction(light, mock_controller):
 
 
 @pytest.mark.asyncio
-async def test_rgb_pure_red_capped(light, mock_controller):
+async def test_rgb_pure_red_capped(light: DiodLEDLight, mock_controller: Any) -> None:
     """Pure red (255,0,0) should be capped to (254,0,0)."""
     await light.async_turn_on(rgb_color=(255, 0, 0))
 
@@ -108,7 +111,9 @@ async def test_rgb_pure_red_capped(light, mock_controller):
 
 
 @pytest.mark.asyncio
-async def test_rgb_black_maps_to_all_zeros(light, mock_controller):
+async def test_rgb_black_maps_to_all_zeros(
+    light: DiodLEDLight, mock_controller: Any
+) -> None:
     """Black (0,0,0) should map to (0,0,0)."""
     await light.async_turn_on(rgb_color=(0, 0, 0))
 
@@ -119,7 +124,9 @@ async def test_rgb_black_maps_to_all_zeros(light, mock_controller):
 
 
 @pytest.mark.asyncio
-async def test_rgbw_conversion_to_rgb(light, mock_controller):
+async def test_rgbw_conversion_to_rgb(
+    light: DiodLEDLight, mock_controller: Any
+) -> None:
     """RGBW (100, 100, 100, 50) should be converted to RGB (150, 150, 150)."""
     await light.async_turn_on(rgbw_color=(100, 100, 100, 50))
 

@@ -97,7 +97,7 @@ TEST_VALUES = [
 ]
 
 
-def speak(text: str):
+def speak(text: str) -> None:
     """Announce text using macOS text-to-speech if available."""
     if shutil.which("say"):
         subprocess.Popen(["say", text])
@@ -105,7 +105,7 @@ def speak(text: str):
         logger.info("TTS [say] NOT AVAILABLE: %s", text)
 
 
-async def run_test(ip: str, port: int, pause: float):
+async def run_test(ip: str, port: int, pause: float) -> None:
     """Run the brightness range test with RGBW active."""
     controller = DiodLEDController(ip, port)
 
@@ -142,7 +142,7 @@ async def run_test(ip: str, port: int, pause: float):
     logger.info("=" * 60)
 
 
-async def main():
+async def main() -> None:
     parser = argparse.ArgumentParser(
         description="Test brightness command 08 23 with active RGBW output"
     )
