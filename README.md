@@ -154,7 +154,13 @@ If this fails, the problem is at the network level:
 - Ensure your Home Assistant / computer is on the same network subnet/VLAN as the controller.
 - Check if your router or firewall is blocking TCP port `8899`.
 
-### 3. Enable Home Assistant Debug Logging
+### 3. Running Local Tests
+If you make modifications to the codebase, verify that your changes have not introduced any regressions by running the test suite locally:
+```bash
+uv run pytest tests/
+```
+
+### 4. Enable Home Assistant Debug Logging
 If the CLI works but the Home Assistant integration does not, you can enable verbose logging to see exactly what hex payloads HA is trying to send.
 
 Add the following to your Home Assistant `configuration.yaml`:
