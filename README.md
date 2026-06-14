@@ -55,7 +55,7 @@ Requires `uv` installed for dependency abstraction.
 
 *Note: The CLI script and the integration enforce hardware-specific constraints (e.g., maximum RGB color intensities of 254 and a 0.1s socket throttle delay) as verified in hardware testing.*
 
-*Note: The codebase has been fully annotated with Python type hints to improve developer experience, tooling support, and maintainability.*
+*Note: The codebase has been fully annotated with Python type hints to improve developer experience, tooling support, and maintainability. Project dependencies have also been updated, including upgrading `urllib3` to `2.7.0` and adding `typing-extensions`.*
 
 ### 1. Power State Testing
 
@@ -70,7 +70,7 @@ uv run python test_controller_cli.py power off
 
 ### 2. Multi-Channel RGBW Testing
 
-The script accepts arguments across a continuous 0-255 bounds check for Red, Green, Blue, and White channels respectfully. Please note that while the script accepts `0-255`, the driver enforces a maximum intensity cap of `254` due to hardware limitations on the color channels.
+The script accepts arguments across a continuous 0-255 bounds check for Red, Green, Blue, and White channels respectively. Please note that while the script accepts `0-255`, the driver enforces a maximum intensity cap of `254` due to hardware limitations on the color channels.
 
 Additionally, the hardware's dedicated White channel (`CMD_TYPE_WHITE = [0x08, 0x4B]`) is non-functional. While the Home Assistant integration automatically compensates for this by converting requested White values into RGB mixing, the CLI script sends the raw White channel command directly to the hardware for testing purposes.
 
