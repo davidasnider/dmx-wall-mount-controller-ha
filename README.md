@@ -102,6 +102,11 @@ uv run python test_controller_cli.py brightness 128
 uv run python test_controller_cli.py brightness 255
 ```
 
+We also include a dedicated script to test the hardware's full-range master brightness scaling (0x00 to 0x30) limit while RGBW is active, using the `test_brightness_range.py` script:
+```bash
+uv run python test_brightness_range.py --ip <YOUR_CONTROLLER_IP>
+```
+
 ### 4. Dynamic Programs
 
 Test built-in controller animations natively.
