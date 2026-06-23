@@ -134,7 +134,7 @@ uv run python test_controller_cli.py speed 10
 
 ### 5. Running the Test Suite
 
-This project includes a comprehensive suite of unit tests built with `pytest`. To run the tests locally and ensure all functionality is working as expected:
+This project includes a comprehensive suite of unit tests built with `pytest`. The test suite is fully annotated with Python type hints for clarity and maintainability. To run the tests locally and ensure all functionality is working as expected:
 
 ```bash
 uv run pytest tests/
