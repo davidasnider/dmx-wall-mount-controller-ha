@@ -55,7 +55,7 @@ Requires `uv` installed for dependency abstraction.
 
 *Note: The CLI script and the integration enforce hardware-specific constraints (e.g., maximum RGB color intensities of 254 and a 0.1s socket throttle delay) as verified in hardware testing.*
 
-*Note: The codebase has been fully annotated with Python type hints to improve developer experience, tooling support, and maintainability. Project dependencies have also been updated, including upgrading `urllib3` to `2.7.0` and adding `typing-extensions`.*
+*Note: The codebase has been fully annotated with Python type hints to improve developer experience, tooling support, and maintainability. Project dependencies have also been updated, including upgrading `urllib3` to `2.7.0`, `idna` to `3.15`, and `requests` to `2.33.1`, and adding `typing-extensions`.*
 
 ### 1. Power State Testing
 
