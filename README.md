@@ -182,4 +182,4 @@ Restart Home Assistant, attempt to turn the light on/off from the dashboard, and
 
 *Note: As thoroughly tested, the hardware limits are verified; full-range color intensity mapping (0x00 to 0xFF) was tested and found unsupported, strictly wrapping modulo 9 or capping at 254 depending on the command type.*
 
-*Note: All features and hardware limits have been successfully tested, verified, and documented up to version 0.4.26.*
+*Note: All features and hardware limits have been successfully tested, verified, and documented up to version 0.4.27.*
