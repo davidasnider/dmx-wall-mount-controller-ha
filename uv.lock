@@ -126,7 +126,7 @@ wheels = [
 
 [[package]]
 name = "dmx-wall-mount-controller-ha"
-version = "0.4.46"
+version = "0.4.47"
 source = { virtual = "." }
 
 [package.dev-dependencies]
