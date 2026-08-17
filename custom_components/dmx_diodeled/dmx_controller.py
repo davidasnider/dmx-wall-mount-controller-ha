@@ -45,17 +45,20 @@ class DiodLEDController:
 
         # Byte 7, 8, 9 are the command components
         # Checksum = (Byte 7 + Byte 8 + Byte 9) mod 256
-        checksum = (cmd_type[0] + cmd_type[1] + val) % 256
+        # Performance optimization: using & 0xFF is slightly faster than % 256
+        checksum = (cmd_type[0] + cmd_type[1] + val) & 0xFF
 
-        packet = bytearray([HEADER])
-        packet.extend(IDENTIFIER)
-        packet.extend(CONSTANTS)
-        packet.extend(cmd_type)
-        packet.append(val)
-        packet.append(checksum)
-        packet.extend(FOOTER)
-
-        return bytes(packet)
+        # Performance optimization: using a single bytes initialization with unpacking
+        # is faster than multiple append/extend calls on a bytearray.
+        return bytes([
+            HEADER,
+            *IDENTIFIER,
+            *CONSTANTS,
+            *cmd_type,
+            val,
+            checksum,
+            *FOOTER
+        ])
 
     async def async_send_commands(self, commands: list[tuple[list[int], int]]) -> None:
         """Send a batch of commands to the controller, max CMD_CHUNK_SIZE per network call."""
