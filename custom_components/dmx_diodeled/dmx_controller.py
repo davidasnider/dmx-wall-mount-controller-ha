@@ -50,15 +50,9 @@ class DiodLEDController:
 
         # Performance optimization: using a single bytes initialization with unpacking
         # is faster than multiple append/extend calls on a bytearray.
-        return bytes([
-            HEADER,
-            *IDENTIFIER,
-            *CONSTANTS,
-            *cmd_type,
-            val,
-            checksum,
-            *FOOTER
-        ])
+        return bytes(
+            [HEADER, *IDENTIFIER, *CONSTANTS, *cmd_type, val, checksum, *FOOTER]
+        )
 
     async def async_send_commands(self, commands: list[tuple[list[int], int]]) -> None:
         """Send a batch of commands to the controller, max CMD_CHUNK_SIZE per network call."""
