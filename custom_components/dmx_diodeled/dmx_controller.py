@@ -41,7 +41,8 @@ class DiodLEDController:
         # Cap the channel value byte (Byte 9 / `val`) at 254 because `0xFF`
         # is forbidden for that field on this hardware, even though `0xFF`
         # may still appear in other fixed packet bytes.
-        val = min(val, 254)
+        # SECURITY: Prevent negative value crash (DoS risk) by clamping to 0-254
+        val = max(0, min(val, 254))
 
         # Byte 7, 8, 9 are the command components
         # Checksum = (Byte 7 + Byte 8 + Byte 9) mod 256
