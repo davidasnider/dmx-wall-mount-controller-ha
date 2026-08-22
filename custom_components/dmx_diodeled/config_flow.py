@@ -29,7 +29,9 @@ class DiodLEDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_HOST): str,
-                    vol.Optional(CONF_PORT, default=DEFAULT_PORT): int,
+                    vol.Optional(CONF_PORT, default=DEFAULT_PORT): vol.All(
+                        int, vol.Range(min=1, max=65535)
+                    ),
                     vol.Optional(CONF_NAME, default=DEFAULT_NAME): str,
                 }
             ),
