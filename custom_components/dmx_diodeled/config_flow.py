@@ -28,11 +28,15 @@ class DiodLEDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_HOST): str,
+                    # SECURITY: Add length limit to prevent potential DoS from oversized inputs
+                    vol.Required(CONF_HOST): vol.All(str, vol.Length(min=1, max=253)),
                     vol.Optional(CONF_PORT, default=DEFAULT_PORT): vol.All(
                         int, vol.Range(min=1, max=65535)
                     ),
-                    vol.Optional(CONF_NAME, default=DEFAULT_NAME): str,
+                    # SECURITY: Add length limit to prevent potential DoS from oversized inputs
+                    vol.Optional(CONF_NAME, default=DEFAULT_NAME): vol.All(
+                        str, vol.Length(min=1, max=100)
+                    ),
                 }
             ),
             errors=errors,
