@@ -26,6 +26,10 @@ from .const import (
 )
 
 
+_PACKET_PREFIX = bytes([HEADER, *IDENTIFIER, *CONSTANTS])
+_PACKET_SUFFIX = bytes(FOOTER)
+
+
 class DiodLEDController:
     """Handle communication with the DiodeLED DMX Controller."""
 
@@ -49,11 +53,9 @@ class DiodLEDController:
         # Performance optimization: using & 0xFF is slightly faster than % 256
         checksum = (cmd_type[0] + cmd_type[1] + val) & 0xFF
 
-        # Performance optimization: using a single bytes initialization with unpacking
-        # is faster than multiple append/extend calls on a bytearray.
-        return bytes(
-            [HEADER, *IDENTIFIER, *CONSTANTS, *cmd_type, val, checksum, *FOOTER]
-        )
+        # Performance optimization: pre-calculating prefix/suffix and using
+        # bytes concatenation is significantly faster than list unpacking.
+        return _PACKET_PREFIX + bytes([*cmd_type, val, checksum]) + _PACKET_SUFFIX
 
     async def async_send_commands(self, commands: list[tuple[list[int], int]]) -> None:
         """Send a batch of commands to the controller, max CMD_CHUNK_SIZE per network call."""
@@ -69,9 +71,11 @@ class DiodLEDController:
                 if elapsed < THROTTLE_DELAY:
                     await asyncio.sleep(THROTTLE_DELAY - elapsed)
 
-                payload = bytearray()
-                for cmd_type, val in chunk:
-                    payload.extend(self._build_packet(cmd_type, val))
+                # Performance optimization: b"".join is significantly faster than
+                # repeatedly calling bytearray.extend in a loop.
+                payload = b"".join(
+                    self._build_packet(cmd_type, val) for cmd_type, val in chunk
+                )
 
                 LOGGER.debug(
                     "Sending batched command payload to %s:%s - %s",
