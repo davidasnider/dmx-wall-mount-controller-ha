@@ -54,7 +54,6 @@ async def async_start_discovery(
         transport, _ = await loop.create_datagram_endpoint(
             lambda: DMXDiscoveryProtocol(hass, callback),
             local_addr=("0.0.0.0", 48899),
-            reuse_port=True,
         )
         return transport
     except Exception:

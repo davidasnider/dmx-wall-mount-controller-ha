@@ -50,6 +50,9 @@ class DiodLEDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         mac = discovery_info.get(CONF_MAC)
 
         if mac:
+            # Normalize (strip/lowercase) so broadcasts with different casing
+            # or whitespace still dedupe to the same unique_id.
+            mac = mac.strip().lower()
             await self.async_set_unique_id(mac)
             self._abort_if_unique_id_configured(updates={CONF_HOST: host})
 

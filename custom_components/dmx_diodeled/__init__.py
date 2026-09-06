@@ -30,15 +30,18 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
         )
 
     # Start the background UDP listener (closing any previous one first so a
-    # reload does not leak sockets or create duplicate listeners)
+    # reload does not leak sockets or create duplicate listeners). Discovery
+    # state lives under its own "discovery" namespace so integration-internal
+    # keys can never collide with per-entry controller keys.
     hass.data.setdefault(DOMAIN, {})
-    previous_transport = hass.data[DOMAIN].pop("discovery_transport", None)
+    discovery_state = hass.data[DOMAIN].setdefault("discovery", {})
+    previous_transport = discovery_state.pop("transport", None)
     if previous_transport is not None:
         previous_transport.close()
 
     transport = await async_start_discovery(hass, async_discovered_device)
     if transport:
-        hass.data[DOMAIN]["discovery_transport"] = transport
+        discovery_state["transport"] = transport
 
         def _stop_discovery_listener(_event) -> None:
             """Close the UDP discovery transport on Home Assistant shutdown."""
