@@ -135,3 +135,21 @@ async def test_rgbw_conversion_to_rgb(
     assert light._attr_rgb_color == (150, 150, 150)
     expected_cmds = [("RED", 150), ("GREEN", 150), ("BLUE", 150), ("WHITE", 0)]
     mock_controller.async_send_commands.assert_awaited_once_with(expected_cmds)
+
+
+@pytest.mark.asyncio
+async def test_turn_off_calls_set_power_false(
+    light: DiodLEDLight, mock_controller: Any
+) -> None:
+    """Turning off the light should call set_power(False) on controller and update state."""
+    # Set the light to ON initially to test state change
+    light._attr_is_on = True
+
+    # Call async_turn_off
+    await light.async_turn_off()
+
+    # Verify controller async_set_power was called with False
+    mock_controller.async_set_power.assert_awaited_once_with(False)
+
+    # Verify state was updated
+    assert light._attr_is_on is False
