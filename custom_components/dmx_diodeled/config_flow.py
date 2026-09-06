@@ -8,6 +8,7 @@ import logging
 
 _LOGGER = logging.getLogger(__name__)
 
+
 class DiodLEDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for DiodeLED DMX Controller."""
 
@@ -44,7 +45,9 @@ class DiodLEDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    async def async_step_integration_discovery(self, discovery_info: dict[str, Any]) -> config_entries.ConfigFlowResult:
+    async def async_step_integration_discovery(
+        self, discovery_info: dict[str, Any]
+    ) -> config_entries.ConfigFlowResult:
         """Handle integration discovery."""
         host = discovery_info[CONF_HOST]
         mac = discovery_info.get(CONF_MAC)
@@ -74,5 +77,7 @@ class DiodLEDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._set_confirm_only()
         return self.async_show_form(
             step_id="discovery_confirm",
-            description_placeholders={"host": self.context["title_placeholders"]["host"]},
+            description_placeholders={
+                "host": self.context["title_placeholders"]["host"]
+            },
         )

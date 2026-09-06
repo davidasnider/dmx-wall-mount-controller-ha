@@ -1,14 +1,17 @@
-import asyncio
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock
 
 import pytest
-from homeassistant.core import HomeAssistant
-from custom_components.dmx_diodeled.discovery import DMXDiscoveryProtocol, async_start_discovery
+from custom_components.dmx_diodeled.discovery import DMXDiscoveryProtocol
+
+
+class MockHomeAssistant:
+    def __init__(self):
+        self.async_create_task = MagicMock()
+
 
 @pytest.mark.asyncio
 async def test_dmx_discovery_protocol_valid_payload():
-    hass = MagicMock(spec=HomeAssistant)
-    hass.async_create_task = MagicMock()
+    hass = MockHomeAssistant()
     callback = AsyncMock()
 
     protocol = DMXDiscoveryProtocol(hass, callback)
@@ -22,10 +25,10 @@ async def test_dmx_discovery_protocol_valid_payload():
     hass.async_create_task.assert_called_once()
     # The actual callback execution is deferred by async_create_task, but we verify it's scheduled
 
+
 @pytest.mark.asyncio
 async def test_dmx_discovery_protocol_invalid_payload():
-    hass = MagicMock(spec=HomeAssistant)
-    hass.async_create_task = MagicMock()
+    hass = MockHomeAssistant()
     callback = AsyncMock()
 
     protocol = DMXDiscoveryProtocol(hass, callback)
@@ -38,10 +41,10 @@ async def test_dmx_discovery_protocol_invalid_payload():
 
     hass.async_create_task.assert_not_called()
 
+
 @pytest.mark.asyncio
 async def test_dmx_discovery_protocol_wrong_device():
-    hass = MagicMock(spec=HomeAssistant)
-    hass.async_create_task = MagicMock()
+    hass = MockHomeAssistant()
     callback = AsyncMock()
 
     protocol = DMXDiscoveryProtocol(hass, callback)

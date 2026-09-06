@@ -3,7 +3,7 @@
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.typing import ConfigType
+from typing import Any
 
 from .const import DOMAIN
 from .dmx_controller import DiodLEDController
@@ -17,7 +17,7 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORMS = [Platform.LIGHT]
 
 
-async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     """Set up the DiodeLED DMX Controller component."""
 
     async def async_discovered_device(ip_address: str, mac_address: str):
@@ -36,6 +36,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         hass.data[DOMAIN]["discovery_transport"] = transport
 
     return True
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up DiodeLED DMX Controller from a config entry."""
