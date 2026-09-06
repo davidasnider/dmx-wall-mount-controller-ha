@@ -1,7 +1,7 @@
 """The DiodeLED DMX Controller integration."""
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_PORT, Platform
+from homeassistant.const import CONF_HOST, CONF_PORT, EVENT_HOMEASSISTANT_STOP, Platform
 from homeassistant.core import HomeAssistant
 from typing import Any
 
@@ -29,11 +29,22 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
             data={CONF_HOST: ip_address, CONF_MAC: mac_address},
         )
 
-    # Start the background UDP listener
+    # Start the background UDP listener (closing any previous one first so a
+    # reload does not leak sockets or create duplicate listeners)
     hass.data.setdefault(DOMAIN, {})
+    previous_transport = hass.data[DOMAIN].pop("discovery_transport", None)
+    if previous_transport is not None:
+        previous_transport.close()
+
     transport = await async_start_discovery(hass, async_discovered_device)
     if transport:
         hass.data[DOMAIN]["discovery_transport"] = transport
+
+        def _stop_discovery_listener(_event) -> None:
+            """Close the UDP discovery transport on Home Assistant shutdown."""
+            transport.close()
+
+        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _stop_discovery_listener)
 
     return True
 

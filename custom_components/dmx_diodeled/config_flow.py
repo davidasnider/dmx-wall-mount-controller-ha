@@ -4,9 +4,6 @@ from homeassistant.const import CONF_HOST, CONF_PORT, CONF_NAME, CONF_MAC
 from typing import Any
 
 from .const import DOMAIN, DEFAULT_PORT, DEFAULT_NAME
-import logging
-
-_LOGGER = logging.getLogger(__name__)
 
 
 class DiodLEDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):

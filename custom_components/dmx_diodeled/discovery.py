@@ -26,14 +26,23 @@ class DMXDiscoveryProtocol(asyncio.DatagramProtocol):
             _LOGGER.debug("Received UDP payload: %s from %s", payload, addr)
             parts = payload.split(",")
             if len(parts) >= 3 and "HF-LPB100" in parts[2]:
-                ip_address = parts[0]
+                # Use the packet source address as the authoritative host: the
+                # IP embedded in the payload can be spoofed by any host on the
+                # network.
+                ip_address = addr[0]
                 mac_address = parts[1]
+                if ip_address != parts[0]:
+                    _LOGGER.warning(
+                        "Discovered device claimed IP %s but packet arrived from %s; using sender address",
+                        parts[0],
+                        ip_address,
+                    )
                 _LOGGER.info(
                     "Discovered DMX Controller at %s (MAC: %s)", ip_address, mac_address
                 )
                 self.hass.async_create_task(self.callback(ip_address, mac_address))
-        except Exception as e:
-            _LOGGER.error("Error parsing UDP payload: %s", e)
+        except Exception:
+            _LOGGER.exception("Error parsing UDP payload from %s", addr)
 
 
 async def async_start_discovery(
@@ -48,6 +57,6 @@ async def async_start_discovery(
             reuse_port=True,
         )
         return transport
-    except Exception as e:
-        _LOGGER.error("Failed to start UDP listener on port 48899: %s", e)
+    except Exception:
+        _LOGGER.exception("Failed to start UDP listener on port 48899")
         return None
