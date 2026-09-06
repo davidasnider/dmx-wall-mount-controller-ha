@@ -19,9 +19,21 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from custom_components.dmx_diodeled.discovery import DMXDiscoveryProtocol  # noqa: E402
 
 
+def _consume(coro):
+    """Consume the coroutine the real task scheduler would have awaited.
+
+    The real ``hass.async_create_task`` schedules the coroutine on the event
+    loop; this test double closes it instead so it is never left dangling.
+    """
+    coro.close()
+
+
 class MockHomeAssistant:
     def __init__(self):
-        self.async_create_task = unittest.mock.MagicMock()
+        # A plain MagicMock would leave the coroutine produced by the async
+        # callback neither awaited nor scheduled, which triggers
+        # "coroutine was never awaited" RuntimeWarnings. Consume it instead.
+        self.async_create_task = unittest.mock.MagicMock(side_effect=_consume)
 
 
 @pytest.mark.asyncio
