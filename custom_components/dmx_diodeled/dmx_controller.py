@@ -165,9 +165,8 @@ class DiodLEDController:
         if cmd:
             await self.async_send_commands([cmd])
         else:
-            # How to turn off rainbow? Probably by sending a color or power off.
-            # PRD doesn't mention rainbow off specifically.
-            pass
+            # Turn off power as a safe default when disabling rainbow effect
+            await self.async_set_power(False)
 
     async def async_set_speed(self, speed: int) -> None:
         """Set pattern speed (1-10)."""
