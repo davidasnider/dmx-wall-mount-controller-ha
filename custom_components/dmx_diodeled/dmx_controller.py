@@ -46,16 +46,24 @@ class DiodLEDController:
         # is forbidden for that field on this hardware, even though `0xFF`
         # may still appear in other fixed packet bytes.
         # SECURITY: Prevent negative value crash (DoS risk) by clamping to 0-254
-        val = max(0, min(val, 254))
+        # Performance optimization: if/elif is significantly faster than min()/max() calls
+        if val < 0:
+            val = 0
+        elif val > 254:
+            val = 254
 
         # Byte 7, 8, 9 are the command components
         # Checksum = (Byte 7 + Byte 8 + Byte 9) mod 256
         # Performance optimization: using & 0xFF is slightly faster than % 256
         checksum = (cmd_type[0] + cmd_type[1] + val) & 0xFF
 
-        # Performance optimization: pre-calculating prefix/suffix and using
-        # bytes concatenation is significantly faster than list unpacking.
-        return _PACKET_PREFIX + bytes([*cmd_type, val, checksum]) + _PACKET_SUFFIX
+        # Performance optimization: pre-calculating prefix/suffix, concatenating bytes,
+        # and direct list indexing [cmd_type[0], cmd_type[1]] avoids list unpacking overhead.
+        return (
+            _PACKET_PREFIX
+            + bytes([cmd_type[0], cmd_type[1], val, checksum])
+            + _PACKET_SUFFIX
+        )
 
     async def async_send_commands(self, commands: list[tuple[list[int], int]]) -> None:
         """Send a batch of commands to the controller, max CMD_CHUNK_SIZE per network call."""
