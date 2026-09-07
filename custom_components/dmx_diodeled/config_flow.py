@@ -1,6 +1,6 @@
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.const import CONF_HOST, CONF_PORT, CONF_NAME
+from homeassistant.const import CONF_HOST, CONF_PORT, CONF_NAME, CONF_MAC
 from typing import Any
 
 from .const import DOMAIN, DEFAULT_PORT, DEFAULT_NAME
@@ -40,4 +40,44 @@ class DiodLEDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             ),
             errors=errors,
+        )
+
+    async def async_step_integration_discovery(
+        self, discovery_info: dict[str, Any]
+    ) -> config_entries.ConfigFlowResult:
+        """Handle integration discovery."""
+        host = discovery_info[CONF_HOST]
+        mac = discovery_info.get(CONF_MAC)
+
+        if mac:
+            # Normalize (strip/lowercase) so broadcasts with different casing
+            # or whitespace still dedupe to the same unique_id.
+            mac = mac.strip().lower()
+            await self.async_set_unique_id(mac)
+            self._abort_if_unique_id_configured(updates={CONF_HOST: host})
+
+        self.context["title_placeholders"] = {"host": host}
+
+        return await self.async_step_discovery_confirm()
+
+    async def async_step_discovery_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Confirm discovery."""
+        if user_input is not None:
+            return self.async_create_entry(
+                title=f"DiodeLED DMX ({self.context['title_placeholders']['host']})",
+                data={
+                    CONF_HOST: self.context["title_placeholders"]["host"],
+                    CONF_PORT: DEFAULT_PORT,
+                    CONF_NAME: DEFAULT_NAME,
+                },
+            )
+
+        self._set_confirm_only()
+        return self.async_show_form(
+            step_id="discovery_confirm",
+            description_placeholders={
+                "host": self.context["title_placeholders"]["host"]
+            },
         )

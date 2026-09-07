@@ -27,9 +27,20 @@ If you prefer not to use HACS, you can install the integration manually:
 1. Copy the `custom_components/dmx_diodeled` directory from this repository into your Home Assistant's `custom_components` directory.
 2. Restart Home Assistant.
 
-## Adding the Device to Home Assistant
+## Automatic Device Discovery
 
-Once the integration is installed (via HACS or manually) and Home Assistant has restarted, follow these steps to add your DMX controller:
+Once the integration is installed and Home Assistant has restarted, no manual IP lookup is required for controllers on the same local network:
+
+- The integration runs a background listener on UDP port `48899` that watches for the periodic discovery broadcast emitted by compatible (HF-LPB100-based) controllers (`<IP>,<MAC>,<HARDWARE_ID>`).
+- When a controller is detected, Home Assistant automatically shows a notification suggesting to add it. The host is taken from the address the broadcast arrived from, and the port defaults to `8899`.
+- Accepting the prompt immediately creates the integration entry and exposes the light entity (e.g., `light.diodeled_dmx`) — no need to look up the IP in your router.
+- Declining the prompt is safe: the controller is simply not added, and you can add it manually later (see below) or revisit pending discoveries from **Settings** > **Devices & Services**.
+
+> **Note:** Discovery only *offers* to add a controller — it never modifies or removes an existing entry. A controller that has already been added (matched by its MAC address) is skipped, so repeated broadcasts will not create duplicate entries.
+
+## Adding the Device to Home Assistant (Manual)
+
+If your controller was not offered automatically (or you prefer to configure it yourself), follow these steps to add your DMX controller:
 
 1. **Find the IP Address:** Discover the IP address of your wall controller. You can find this in your router's DHCP lease table (look for Espressif or HF-LPB100 devices) or within the official TouchDial mobile app if previously configured. **It is highly recommended to assign a static IP address** to the controller in your router to prevent connection issues if the IP changes.
 2. Open Home Assistant and navigate to **Settings** > **Devices & Services**.
