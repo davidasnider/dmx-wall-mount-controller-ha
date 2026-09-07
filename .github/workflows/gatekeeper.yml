@@ -23,8 +23,7 @@ jobs:
           else
             echo "Waiting for 'ready-to-merge' label."
             echo "Review the comments from Copilot/antigravity, then add the label to proceed."
-            # allow passing for the bot
-            exit 0
+            exit 1
           fi
 
   automerge:
