@@ -23,19 +23,9 @@ jobs:
           else
             echo "Waiting for 'ready-to-merge' label."
             echo "Review the comments from Copilot/antigravity, then add the label to proceed."
-            exit 1
+            # Allow CI to pass even without label, since automerge is removed
+            exit 0
           fi
-
-  automerge:
-    needs: [gatekeeper-check]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && github.event.action != 'closed'
-    steps:
-      - name: Enable auto-merge for PR
-        run: gh pr merge --auto --squash "$PR_URL"
-        env:
-          PR_URL: ${{github.event.pull_request.html_url}}
-          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
   release:
     runs-on: ubuntu-latest
