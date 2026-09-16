@@ -81,8 +81,12 @@ class DiodLEDController:
 
                 # Performance optimization: b"".join is significantly faster than
                 # repeatedly calling bytearray.extend in a loop.
-                # Additionally, using a list comprehension is ~30% faster than a generator
-                # expression here because CPython can pre-calculate the total size.
+                # Additionally, a list comprehension is ~30% faster than a generator
+                # expression here: bytes.join materializes the iterable and computes
+                # the total size before a single allocation in either case, so the
+                # gain comes from avoiding per-item generator overhead and join's
+                # extra iterable-to-list conversion, not from any pre-allocation
+                # difference.
                 payload = b"".join(
                     [self._build_packet(cmd_type, val) for cmd_type, val in chunk]
                 )
