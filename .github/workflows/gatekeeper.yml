@@ -17,7 +17,7 @@ jobs:
     steps:
       - name: Check for approval label
         run: |
-          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'ready-to-merge') }}" == "true" || "true" == "true" ]]; then
+          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'ready-to-merge') || contains(github.event.pull_request.labels.*.name, 'ready to merge') }}" == "true" ]]; then
             echo "Label found! The gates are open."
             exit 0
           else
