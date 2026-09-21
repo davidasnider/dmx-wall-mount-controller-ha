@@ -21,6 +21,11 @@ class DMXDiscoveryProtocol(asyncio.DatagramProtocol):
 
     def datagram_received(self, data: bytes, addr: tuple[str, int]) -> None:
         """Handle received datagram."""
+        # Performance optimization: Fast-path reject unrelated broadcast packets
+        # before expensive string decoding and memory allocation.
+        if b"HF-LPB100" not in data:
+            return
+
         try:
             payload = data.decode("utf-8", errors="ignore").strip()
             # SECURITY: Sanitize the raw network payload before logging to prevent Log Injection
