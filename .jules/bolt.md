@@ -9,3 +9,6 @@ Replaced multiple extend and append calls on a bytearray with a single bytes ini
 ## 2026-09-14 - ⚡ Bolt: Optimize payload batching with list comprehension
 **Learning:** In CPython, using `b"".join([x for x in list])` (a list comprehension) is significantly faster than using `b"".join(x for x in list)` (a generator expression) because `join()` can pre-allocate the exact required memory when passed a list, avoiding dynamic buffer resizing and multiple passes.
 **Action:** When micro-optimizing extremely frequent payload batching paths, use a list comprehension inside `b"".join()` instead of a generator expression to gain ~30% speedup.
+## 2026-09-21 - ⚡ Bolt: Optimize UDP discovery fast path
+**Learning:** For network listeners processing UDP broadcasts, performing a fast-path raw byte check (e.g., `b"TARGET" not in data`) before doing expensive operations like UTF-8 decoding, string replacement, and splitting prevents unnecessary CPU cycles and memory allocation for unrelated network traffic.
+**Action:** When implementing broadcast listeners, always check for specific protocol signatures in the raw `bytes` payload before decoding or allocating new objects.
