@@ -39,13 +39,17 @@ class DMXDiscoveryProtocol(asyncio.DatagramProtocol):
                 ip_address = addr[0]
                 mac_address = parts[1]
                 if ip_address != parts[0]:
+                    # SECURITY: Sanitize claimed IP to prevent Log Injection
+                    sanitized_claimed_ip = parts[0].replace("\n", "\\n").replace("\r", "\\r")
                     _LOGGER.warning(
                         "Discovered device claimed IP %s but packet arrived from %s; using sender address",
-                        parts[0],
+                        sanitized_claimed_ip,
                         ip_address,
                     )
+                # SECURITY: Sanitize MAC address to prevent Log Injection
+                sanitized_mac = mac_address.replace("\n", "\\n").replace("\r", "\\r")
                 _LOGGER.info(
-                    "Discovered DMX Controller at %s (MAC: %s)", ip_address, mac_address
+                    "Discovered DMX Controller at %s (MAC: %s)", ip_address, sanitized_mac
                 )
                 self.hass.async_create_task(self.callback(ip_address, mac_address))
         except Exception:
