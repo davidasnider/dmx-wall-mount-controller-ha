@@ -71,8 +71,29 @@ The following is a list of features and hardware limits that need to be tested a
 **Objective:** To verify if the DMX processor accepts sequential integers in Byte 5 to route instructions to independent physical zones.
 
 ## Feature 8: "All Zones" Broadcast Command
+**Status:** ✅ IMPLEMENTED & TEST SCRIPT READY — Zone parameter & broadcast bytes supported.
+
 **Context:** The installation guide for your device states that a short press of the master power button on the glass panel toggles all zones and channels ON or OFF simultaneously.
-**Test to Execute:** If changing Byte 5 to 01, 02, and 03 maps successfully to zones 1, 2, and 3, try testing a packet with 00 or 04 in Byte 5 to see if it acts as a broadcast byte that triggers a global state change on all decoders at once.
+
+**Test Script Created:** `test_broadcast_command.py` has been implemented to fire sequential test sequences (Power ON/OFF, RGBW color, brightness) using Byte 5 values `0x00`, `0x01`, `0x02`, `0x03`, and `0x04` across all connected decoders/universes.
+
+**Packet Structure:**
+- Zone 1: `55 99 7e bd 01 ff ...` (Default)
+- Zone 2: `55 99 7e bd 02 ff ...`
+- Zone 3: `55 99 7e bd 03 ff ...`
+- Broadcast Candidate 1: `55 99 7e bd 00 ff ...`
+- Broadcast Candidate 2: `55 99 7e bd 04 ff ...`
+
+**Usage:**
+```bash
+uv run python test_broadcast_command.py --ip <CONTROLLER_IP>
+```
+or via CLI:
+```bash
+uv run python test_controller_cli.py --ip <CONTROLLER_IP> --zone 0 power on
+uv run python test_controller_cli.py --ip <CONTROLLER_IP> --zone 4 power on
+```
+
 **Objective:** To enable the custom component to mirror the physical controller's capability to fire a single packet that affects all DMX universes connected to the bridge.
 
 ## Feature 9: Remote ID Addressing for Multi-Zone Control

@@ -40,7 +40,7 @@ class DiodLEDController:
         self._last_send_time = 0
         self._lock = asyncio.Lock()
 
-    def _build_packet(self, cmd_type: list[int], val: int) -> bytes:
+    def _build_packet(self, cmd_type: list[int], val: int, zone: int = 0x01) -> bytes:
         """Construct the 12-byte hex packet."""
         # Cap the channel value byte (Byte 9 / `val`) at 254 because `0xFF`
         # is forbidden for that field on this hardware, even though `0xFF`
@@ -57,15 +57,22 @@ class DiodLEDController:
         # Performance optimization: using & 0xFF is slightly faster than % 256
         checksum = (cmd_type[0] + cmd_type[1] + val) & 0xFF
 
-        # Performance optimization: pre-calculating prefix/suffix, concatenating bytes,
-        # and direct list indexing [cmd_type[0], cmd_type[1]] avoids list unpacking overhead.
-        return (
+        # Performance optimization: pre-calculated prefix for default Zone 1 (0x01),
+        # dynamically constructed prefix for broadcast (0x00, 0x04) or other zones (0x02, 0x03).
+        prefix = (
             _PACKET_PREFIX
-            + bytes([cmd_type[0], cmd_type[1], val, checksum])
-            + _PACKET_SUFFIX
+            if zone == 0x01
+            else bytes([HEADER, *IDENTIFIER, zone, CONSTANTS[1]])
         )
 
-    async def async_send_commands(self, commands: list[tuple[list[int], int]]) -> None:
+        return (
+            prefix + bytes([cmd_type[0], cmd_type[1], val, checksum]) + _PACKET_SUFFIX
+        )
+
+    async def async_send_commands(
+        self,
+        commands: list[tuple[list[int], int] | tuple[list[int], int, int]],
+    ) -> None:
         """Send a batch of commands to the controller, max CMD_CHUNK_SIZE per network call."""
         chunk_size = CMD_CHUNK_SIZE
 
@@ -83,9 +90,16 @@ class DiodLEDController:
                 # repeatedly calling bytearray.extend in a loop.
                 # Additionally, using a list comprehension is ~30% faster than a generator
                 # expression here because CPython can pre-calculate the total size.
-                payload = b"".join(
-                    [self._build_packet(cmd_type, val) for cmd_type, val in chunk]
-                )
+                payload_list = []
+                for item in chunk:
+                    if len(item) == 3:
+                        cmd_type, val, zone = item  # type: ignore[misc]
+                        payload_list.append(self._build_packet(cmd_type, val, zone))
+                    else:
+                        cmd_type, val = item  # type: ignore[misc]
+                        payload_list.append(self._build_packet(cmd_type, val))
+
+                payload = b"".join(payload_list)
 
                 LOGGER.debug(
                     "Sending batched command payload to %s:%s - %s",
@@ -119,65 +133,79 @@ class DiodLEDController:
                     )
                     raise
 
-    async def async_send_command(self, cmd_type: list[int], val: int) -> None:
+    async def async_send_command(
+        self, cmd_type: list[int], val: int, zone: int = 0x01
+    ) -> None:
         """Send a single command to the controller with rate limiting."""
-        await self.async_send_commands([(cmd_type, val)])
+        await self.async_send_commands([(cmd_type, val, zone)])
 
-    def get_power_command(self, on: bool) -> tuple[list[int], int]:
+    def get_power_command(
+        self, on: bool, zone: int = 0x01
+    ) -> tuple[list[int], int, int]:
         """Get the power command tuple."""
         val = VAL_POWER_ON if on else VAL_POWER_OFF
-        return (CMD_TYPE_POWER, val)
+        return (CMD_TYPE_POWER, val, zone)
 
-    def get_brightness_command(self, ha_brightness: int) -> tuple[list[int], int]:
+    def get_brightness_command(
+        self, ha_brightness: int, zone: int = 0x01
+    ) -> tuple[list[int], int, int]:
         """Get the brightness command tuple."""
         val = BRIGHTNESS_MIN + round(
             (ha_brightness / 255.0) * (BRIGHTNESS_MAX - BRIGHTNESS_MIN)
         )
-        return (CMD_TYPE_BRIGHTNESS, val)
+        return (CMD_TYPE_BRIGHTNESS, val, zone)
 
     def get_rgbw_commands(
-        self, r: int, g: int, b: int, w: int
-    ) -> list[tuple[list[int], int]]:
+        self, r: int, g: int, b: int, w: int, zone: int = 0x01
+    ) -> list[tuple[list[int], int, int]]:
         """Get a list of RGBW command tuples."""
         return [
-            (CMD_TYPE_RED, r),
-            (CMD_TYPE_GREEN, g),
-            (CMD_TYPE_BLUE, b),
-            (CMD_TYPE_WHITE, w),
+            (CMD_TYPE_RED, r, zone),
+            (CMD_TYPE_GREEN, g, zone),
+            (CMD_TYPE_BLUE, b, zone),
+            (CMD_TYPE_WHITE, w, zone),
         ]
 
-    def get_rainbow_command(self, on: bool) -> tuple[list[int], int] | None:
+    def get_rainbow_command(
+        self, on: bool, zone: int = 0x01
+    ) -> tuple[list[int], int, int] | None:
         """Get the rainbow effect command tuple."""
         if on:
-            return (CMD_TYPE_RAINBOW, VAL_RAINBOW_ON)
+            return (CMD_TYPE_RAINBOW, VAL_RAINBOW_ON, zone)
         return None
 
-    def get_speed_command(self, speed: int) -> tuple[list[int], int]:
+    def get_speed_command(
+        self, speed: int, zone: int = 0x01
+    ) -> tuple[list[int], int, int]:
         """Get the speed command tuple."""
         val = max(SPEED_MIN, min(SPEED_MAX, speed))
-        return (CMD_TYPE_SPEED, val)
+        return (CMD_TYPE_SPEED, val, zone)
 
-    async def async_set_power(self, on: bool) -> None:
+    async def async_set_power(self, on: bool, zone: int = 0x01) -> None:
         """Turn the light on or off."""
-        await self.async_send_commands([self.get_power_command(on)])
+        await self.async_send_commands([self.get_power_command(on, zone=zone)])
 
-    async def async_set_brightness(self, ha_brightness: int) -> None:
+    async def async_set_brightness(self, ha_brightness: int, zone: int = 0x01) -> None:
         """Set master brightness (map 0-255 to 0x01-0x08)."""
-        await self.async_send_commands([self.get_brightness_command(ha_brightness)])
+        await self.async_send_commands(
+            [self.get_brightness_command(ha_brightness, zone=zone)]
+        )
 
-    async def async_set_rgbw(self, r: int, g: int, b: int, w: int) -> None:
+    async def async_set_rgbw(
+        self, r: int, g: int, b: int, w: int, zone: int = 0x01
+    ) -> None:
         """Set RGBW values."""
-        await self.async_send_commands(self.get_rgbw_commands(r, g, b, w))
+        await self.async_send_commands(self.get_rgbw_commands(r, g, b, w, zone=zone))
 
-    async def async_set_rainbow(self, on: bool) -> None:
+    async def async_set_rainbow(self, on: bool, zone: int = 0x01) -> None:
         """Activate rainbow mode."""
-        cmd = self.get_rainbow_command(on)
+        cmd = self.get_rainbow_command(on, zone=zone)
         if cmd:
             await self.async_send_commands([cmd])
         else:
             # Turn off power as a safe default when disabling rainbow effect
-            await self.async_set_power(False)
+            await self.async_set_power(False, zone=zone)
 
-    async def async_set_speed(self, speed: int) -> None:
+    async def async_set_speed(self, speed: int, zone: int = 0x01) -> None:
         """Set pattern speed (1-10)."""
-        await self.async_send_commands([self.get_speed_command(speed)])
+        await self.async_send_commands([self.get_speed_command(speed, zone=zone)])
