@@ -111,3 +111,40 @@ async def test_async_send_commands_chunking(
     for i in range(20):
         write_arg = mock_writer.write.call_args_list[i][0][0]
         assert len(write_arg) == 12
+
+
+@pytest.mark.asyncio
+@unittest.mock.patch("asyncio.open_connection")
+@unittest.mock.patch("asyncio.sleep")
+@unittest.mock.patch("custom_components.dmx_diodeled.dmx_controller.time.monotonic")
+async def test_async_send_commands_throttling_monotonic(
+    mock_monotonic: Any,
+    mock_sleep: Any,
+    mock_open_connection: Any,
+    controller: DiodLEDController,
+) -> None:
+    """Test that async_send_commands uses time.monotonic() for rate-limit throttling."""
+    mock_reader = unittest.mock.AsyncMock()
+    mock_writer = unittest.mock.AsyncMock()
+    mock_writer.write = unittest.mock.Mock()
+    mock_writer.close = unittest.mock.Mock()
+    mock_open_connection.return_value = (mock_reader, mock_writer)
+
+    current_time = 100.0
+
+    def get_time() -> float:
+        return current_time
+
+    mock_monotonic.side_effect = get_time
+
+    await controller.async_send_commands([([0x08, 0x00], 1)])
+    assert controller._last_send_time == 100.0
+
+    current_time = 100.01
+    await controller.async_send_commands([([0x08, 0x00], 2)])
+    assert controller._last_send_time == 100.01
+
+    # asyncio.sleep should have been called to sleep for remaining throttle delay (0.1 - 0.01 = 0.09)
+    mock_sleep.assert_called_once()
+    sleep_arg = mock_sleep.call_args[0][0]
+    assert pytest.approx(sleep_arg, abs=1e-3) == 0.09
