@@ -60,7 +60,7 @@ If your controller was not offered automatically (or you prefer to configure it 
 
 ## Local Testing & Development
 
-We have included a command-line interface test script `test_controller_cli.py` which allows you to send packet frames directly to the local hardware outside of the Home Assistant environment. This script will translate commands instantly to the required 12-byte hex stream format.
+We have included command-line interface test scripts (`test_controller_cli.py`, `test_brightness_range.py`, and `test_idle_timeout.py`) which allow you to send packet frames directly to the local hardware outside of the Home Assistant environment. This script will translate commands instantly to the required 12-byte hex stream format.
 
 Requires `uv` installed for dependency abstraction.
 
@@ -118,7 +118,14 @@ We also include a dedicated script to test the hardware's full-range master brig
 uv run python test_brightness_range.py --ip <YOUR_CONTROLLER_IP>
 ```
 
-### 4. Dynamic Programs
+### 4. Persistent Connection & Idle Timeout Testing
+
+To test persistent TCP socket connection behavior and 305-second idle timeout handling against hardware:
+```bash
+uv run python test_idle_timeout.py --ip <YOUR_CONTROLLER_IP> [--wait 305]
+```
+
+### 5. Dynamic Programs
 
 Test built-in controller animations natively.
 
@@ -143,7 +150,7 @@ uv run python test_controller_cli.py speed 10
 > Example (Custom IP): `uv run python test_controller_cli.py --ip 192.168.1.150 power on`
 > Example (Custom IP and Port): `uv run python test_controller_cli.py --ip 192.168.1.150 --port 8900 effect rainbow`
 
-### 5. Running the Test Suite
+### 6. Running the Test Suite
 
 This project includes a comprehensive suite of unit tests built with `pytest`. The test suite is fully annotated with Python type hints for clarity and maintainability. To run the tests locally and ensure all functionality is working as expected:
 
