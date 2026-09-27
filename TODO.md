@@ -66,8 +66,19 @@ The following is a list of features and hardware limits that need to be tested a
 **Conclusion:** The dedicated White channel is broken or unsupported on this controller. While the Home Assistant integration automatically compensates for this by converting requested White values into RGB mixing, the CLI script sends the raw White channel command directly to the hardware for testing purposes.
 
 ## Feature 7: Zone Command Identification (Testing Byte 5)
-**Context:** In all of the 12-byte payloads you successfully captured and copied as a hex stream (such as the Power ON command 55997ebd01ff0212abbfaaaa), Byte 5 was consistently 01. Since your specific controller model (DI-DMX-WIFI-WMUS-3Z-WH) is rated for 3 independent zones, it is highly probable that 01 represents Zone 1.
-**Test to Execute:** Send raw TCP packets to port 8899 where you keep the frame exactly the same as your captured Power ON or Power OFF commands, but change Byte 5 from 01 to 02 and then to 03.
+**Status:** ✅ TESTED — Zone routing supported via Byte 5 mutation.
+
+**Context:** In all of the 12-byte payloads captured as a hex stream (such as Power ON command `55997ebd01ff0212abbfaaaa`), Byte 5 was consistently `01`. Since the controller model (DI-DMX-WIFI-WMUS-3Z-WH) is rated for 3 independent zones, `01` represents Zone 1.
+
+**Test Executed:** Sent raw TCP packets to port 8899 keeping the frame structure intact while mutating Byte 5 from `01` to `02` and `03` using `test_zone_commands.py`.
+
+**Result:**
+- **0x01** = Zone 1 target
+- **0x02** = Zone 2 target
+- **0x03** = Zone 3 target
+
+**Conclusion:** The controller uses sequential integers (`0x01`, `0x02`, `0x03`) in Byte 5 to route instructions to independent physical zones. The driver and CLI have been updated to support a `zone` parameter (defaulting to Zone 1).
+
 **Objective:** To verify if the DMX processor accepts sequential integers in Byte 5 to route instructions to independent physical zones.
 
 ## Feature 8: "All Zones" Broadcast Command

@@ -31,6 +31,12 @@ async def main() -> None:
     parser.add_argument(
         "--port", type=int, default=8899, help="Controller TCP Port (default: 8899)"
     )
+    parser.add_argument(
+        "--zone",
+        type=int,
+        default=1,
+        help="Controller Zone (1-3, default: 1)",
+    )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
@@ -83,8 +89,13 @@ async def main() -> None:
         )
         sys.exit(1)
 
-    controller = DiodLEDController(args.ip, args.port)
-    cli_logger.info("Connecting to DMX controller at %s:%s...", args.ip, args.port)
+    controller = DiodLEDController(args.ip, args.port, zone=args.zone)
+    cli_logger.info(
+        "Connecting to DMX controller at %s:%s (Zone %s)...",
+        args.ip,
+        args.port,
+        args.zone,
+    )
 
     try:
         if args.command == "power":

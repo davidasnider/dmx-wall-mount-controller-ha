@@ -40,6 +40,24 @@ def test_power_off_framing(controller: DiodLEDController) -> None:
     assert packet_off.hex() == "55997ebd01ff0212a9bdaaaa"  # pragma: allowlist secret
 
 
+def test_zone_framing() -> None:
+    ctrl_z1 = DiodLEDController("127.0.0.1", 8899, zone=1)
+    ctrl_z2 = DiodLEDController("127.0.0.1", 8899, zone=2)
+    ctrl_z3 = DiodLEDController("127.0.0.1", 8899, zone=3)
+
+    pkt_z1 = ctrl_z1._build_packet(CMD_TYPE_POWER, VAL_POWER_ON)
+    pkt_z2 = ctrl_z2._build_packet(CMD_TYPE_POWER, VAL_POWER_ON)
+    pkt_z3 = ctrl_z3._build_packet(CMD_TYPE_POWER, VAL_POWER_ON)
+
+    assert pkt_z1.hex() == "55997ebd01ff0212abbfaaaa"  # pragma: allowlist secret
+    assert pkt_z2.hex() == "55997ebd02ff0212abbfaaaa"  # pragma: allowlist secret
+    assert pkt_z3.hex() == "55997ebd03ff0212abbfaaaa"  # pragma: allowlist secret
+
+    # Test explicit zone override in _build_packet call
+    pkt_override = ctrl_z1._build_packet(CMD_TYPE_POWER, VAL_POWER_ON, zone=2)
+    assert pkt_override.hex() == "55997ebd02ff0212abbfaaaa"  # pragma: allowlist secret
+
+
 def test_checksum_calculation(controller: DiodLEDController) -> None:
     # CMD_TYPE_RED: [0x08, 0x48], Val: 0xFF
     # Value is capped at 0xFE (254).

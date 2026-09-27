@@ -113,9 +113,14 @@ uv run python test_controller_cli.py brightness 128
 uv run python test_controller_cli.py brightness 255
 ```
 
-We also include a dedicated script to test the hardware's full-range master brightness scaling (0x00 to 0x30) limit while RGBW is active, using the `test_brightness_range.py` script:
+We also include dedicated scripts to test hardware limits and features:
+- Master brightness scaling (0x00 to 0x30):
 ```bash
 uv run python test_brightness_range.py --ip <YOUR_CONTROLLER_IP>
+```
+- Zone command identification (testing Byte 5 mutation across zones 1, 2, and 3):
+```bash
+uv run python test_zone_commands.py --ip <YOUR_CONTROLLER_IP>
 ```
 
 ### 4. Dynamic Programs
@@ -136,11 +141,12 @@ uv run python test_controller_cli.py speed 1
 uv run python test_controller_cli.py speed 10
 ```
 
-> **Note**: If your controller is at a different IP address or uses a port other than `8899`, pass `--ip` and/or `--port` *before* the command.
+> **Note**: If your controller is at a different IP address, uses a port other than `8899`, or targets a specific zone (1-3, default 1), pass `--ip`, `--port`, and/or `--zone` *before* the command.
 > 
 > To avoid re-typing the IP each time, you can set the `DMX_IP` environment variable: `export DMX_IP=<YOUR_CONTROLLER_IP>`
 > 
 > Example (Custom IP): `uv run python test_controller_cli.py --ip 192.168.1.150 power on`
+> Example (Custom Zone 2): `uv run python test_controller_cli.py --ip 192.168.1.150 --zone 2 power on`
 > Example (Custom IP and Port): `uv run python test_controller_cli.py --ip 192.168.1.150 --port 8900 effect rainbow`
 
 ### 5. Running the Test Suite

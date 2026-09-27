@@ -33,14 +33,17 @@ _PACKET_SUFFIX = bytes(FOOTER)
 class DiodLEDController:
     """Handle communication with the DiodeLED DMX Controller."""
 
-    def __init__(self, ip: str, port: int) -> None:
+    def __init__(self, ip: str, port: int, zone: int = 1) -> None:
         """Initialize the controller."""
         self.ip = ip
         self.port = port
+        self.zone = zone
         self._last_send_time = 0
         self._lock = asyncio.Lock()
 
-    def _build_packet(self, cmd_type: list[int], val: int) -> bytes:
+    def _build_packet(
+        self, cmd_type: list[int], val: int, zone: int | None = None
+    ) -> bytes:
         """Construct the 12-byte hex packet."""
         # Cap the channel value byte (Byte 9 / `val`) at 254 because `0xFF`
         # is forbidden for that field on this hardware, even though `0xFF`
@@ -57,12 +60,18 @@ class DiodLEDController:
         # Performance optimization: using & 0xFF is slightly faster than % 256
         checksum = (cmd_type[0] + cmd_type[1] + val) & 0xFF
 
+        # Byte 5: zone identifier (defaulting to self.zone or 1)
+        zone_val = (self.zone if zone is None else zone) & 0xFF
+        prefix = (
+            _PACKET_PREFIX
+            if zone_val == 1
+            else bytes([HEADER, *IDENTIFIER, zone_val, CONSTANTS[1]])
+        )
+
         # Performance optimization: pre-calculating prefix/suffix, concatenating bytes,
         # and direct list indexing [cmd_type[0], cmd_type[1]] avoids list unpacking overhead.
         return (
-            _PACKET_PREFIX
-            + bytes([cmd_type[0], cmd_type[1], val, checksum])
-            + _PACKET_SUFFIX
+            prefix + bytes([cmd_type[0], cmd_type[1], val, checksum]) + _PACKET_SUFFIX
         )
 
     async def async_send_commands(self, commands: list[tuple[list[int], int]]) -> None:
