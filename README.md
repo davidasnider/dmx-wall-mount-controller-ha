@@ -60,7 +60,7 @@ If your controller was not offered automatically (or you prefer to configure it 
 
 ## Local Testing & Development
 
-We have included command-line interface test scripts (`test_controller_cli.py`, `test_brightness_range.py`, and `test_idle_timeout.py`) which allow you to send packet frames directly to the local hardware outside of the Home Assistant environment. This script will translate commands instantly to the required 12-byte hex stream format.
+We have included command-line interface test scripts (`test_controller_cli.py`, `test_brightness_range.py`, and `test_idle_timeout.py`) which allow you to send packet frames directly to the local hardware outside of the Home Assistant environment. These scripts will translate commands instantly to the required 12-byte hex stream format.
 
 Requires `uv` installed for dependency abstraction.
 

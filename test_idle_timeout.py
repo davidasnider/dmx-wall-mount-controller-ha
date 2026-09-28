@@ -54,10 +54,12 @@ async def run_idle_test(ip: str, port: int, wait_seconds: float) -> bool:
 
     reader = None
     writer = None
+    connected = False
     try:
         reader, writer = await asyncio.wait_for(
             asyncio.open_connection(ip, port), timeout=5.0
         )
+        connected = True
         logger.info("Persistent connection established.")
 
         # Step 1: Send initial power command over socket
@@ -77,8 +79,15 @@ async def run_idle_test(ip: str, port: int, wait_seconds: float) -> bool:
         writer.write(packet)
         await asyncio.wait_for(writer.drain(), timeout=2.0)
 
-        # Check if reader indicates connection closed/EOD
-        if reader.at_eof():
+        # Give the peer a short window to react, then probe the reader: an EOF
+        # read (b"") or an exception raised from the read means the idle period
+        # dropped the connection. A plain timeout just means no reply yet, which
+        # is normal since this hardware never answers commands on the socket.
+        try:
+            data = await asyncio.wait_for(reader.read(1), timeout=2.0)
+        except asyncio.TimeoutError:
+            data = None  # no reply yet; socket is still open
+        if data == b"":
             raise ConnectionResetError("Socket reached EOF after idle timeout.")
 
         logger.info("SUCCESS: Follow-up command succeeded on persistent socket!")
@@ -91,10 +100,18 @@ async def run_idle_test(ip: str, port: int, wait_seconds: float) -> bool:
         BrokenPipeError,
         OSError,
     ) as err:
-        logger.error(
-            "FAILED: Persistent connection was dropped or timed out after idle period. Error: %s",
-            err,
-        )
+        if connected:
+            logger.error(
+                "FAILED: Persistent connection was dropped or timed out after idle period. Error: %s",
+                err,
+            )
+        else:
+            logger.error(
+                "FAILED: Initial connection to %s:%s failed before the idle test began. Error: %s",
+                ip,
+                port,
+                err,
+            )
         speak("Persistent connection failed or was dropped by module.")
         return False
     finally:

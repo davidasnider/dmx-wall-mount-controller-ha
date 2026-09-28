@@ -1,3 +1,4 @@
+import asyncio
 import sys
 import os
 import unittest.mock
@@ -39,9 +40,13 @@ def _create_mock_writer() -> unittest.mock.AsyncMock:
 
 @pytest.mark.asyncio
 async def test_run_idle_test_success() -> None:
-    """Test run_idle_test when connection and follow-up command succeed."""
+    """Test run_idle_test when connection and follow-up command succeed.
+
+    The hardware never answers commands on the socket, so a successful run is
+    modeled by the post-idle read probe timing out (no reply, socket still open).
+    """
     mock_reader = unittest.mock.MagicMock()
-    mock_reader.at_eof.return_value = False
+    mock_reader.read = unittest.mock.AsyncMock(side_effect=asyncio.TimeoutError)
 
     mock_writer = _create_mock_writer()
 
@@ -85,9 +90,32 @@ async def test_run_idle_test_connection_reset() -> None:
 
 @pytest.mark.asyncio
 async def test_run_idle_test_eof_detected() -> None:
-    """Test run_idle_test when reader reports EOF after idle period."""
+    """Test run_idle_test when the post-idle read probe receives EOF (FIN)."""
     mock_reader = unittest.mock.MagicMock()
-    mock_reader.at_eof.return_value = True
+    mock_reader.read = unittest.mock.AsyncMock(return_value=b"")
+
+    mock_writer = _create_mock_writer()
+
+    async def mock_open_connection(
+        host: str, port: int
+    ) -> tuple[Any, unittest.mock.AsyncMock]:
+        return mock_reader, mock_writer
+
+    with unittest.mock.patch(
+        "asyncio.open_connection", side_effect=mock_open_connection
+    ):
+        result = await run_idle_test("127.0.0.1", 8899, wait_seconds=0.01)
+        assert result is False
+        mock_writer.close.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_run_idle_test_read_reset() -> None:
+    """Test run_idle_test when the post-idle read probe raises ConnectionResetError."""
+    mock_reader = unittest.mock.MagicMock()
+    mock_reader.read = unittest.mock.AsyncMock(
+        side_effect=ConnectionResetError("Connection reset by peer")
+    )
 
     mock_writer = _create_mock_writer()
 
