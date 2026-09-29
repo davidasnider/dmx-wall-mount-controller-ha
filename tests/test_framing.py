@@ -68,6 +68,13 @@ def test_zone_framing_zones(controller: DiodLEDController) -> None:
     assert packet_z3.hex() == "55997ebd03ff0212abbfaaaa"  # pragma: allowlist secret
 
 
+def test_zone_framing_rejects_out_of_range(controller: DiodLEDController) -> None:
+    """Test that out-of-range zone values are rejected with an explicit ValueError."""
+    for bad_zone in (-1, 0x100):
+        with pytest.raises(ValueError, match="zone must be a byte"):
+            controller._build_packet(CMD_TYPE_POWER, VAL_POWER_ON, zone=bad_zone)
+
+
 def test_checksum_calculation(controller: DiodLEDController) -> None:
     # CMD_TYPE_RED: [0x08, 0x48], Val: 0xFF
     # Value is capped at 0xFE (254).

@@ -57,12 +57,20 @@ class DiodLEDController:
         # Performance optimization: using & 0xFF is slightly faster than % 256
         checksum = (cmd_type[0] + cmd_type[1] + val) & 0xFF
 
+        # SECURITY: Reject out-of-range zones instead of clamping them, because silently mapping
+        # an invalid value to 0x00 would turn the packet into a broadcast affecting all zones.
+        # (A raw ValueError from bytes() here would also escape async_send_commands error handling.)
+        if not 0 <= zone <= 0xFF:
+            raise ValueError(f"zone must be a byte (0-255), got {zone!r}")
+
         # Performance optimization: pre-calculated prefix for default Zone 1 (0x01),
         # dynamically constructed prefix for broadcast (0x00, 0x04) or other zones (0x02, 0x03).
+        # Deriving the rest of the prefix from CONSTANTS[1:] keeps it in sync if IDENTIFIER or
+        # CONSTANTS ever change shape.
         prefix = (
             _PACKET_PREFIX
             if zone == 0x01
-            else bytes([HEADER, *IDENTIFIER, zone, CONSTANTS[1]])
+            else bytes([HEADER, *IDENTIFIER, zone]) + bytes(CONSTANTS[1:])
         )
 
         return (
@@ -88,8 +96,6 @@ class DiodLEDController:
 
                 # Performance optimization: b"".join is significantly faster than
                 # repeatedly calling bytearray.extend in a loop.
-                # Additionally, using a list comprehension is ~30% faster than a generator
-                # expression here because CPython can pre-calculate the total size.
                 payload_list = []
                 for item in chunk:
                     if len(item) == 3:
