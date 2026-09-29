@@ -44,15 +44,13 @@ def test_zone_framing_broadcast(controller: DiodLEDController) -> None:
     """Test packet framing for broadcast candidate bytes 0x00 and 0x04."""
     packet_bcast_00 = controller._build_packet(CMD_TYPE_POWER, VAL_POWER_ON, zone=0x00)
     assert packet_bcast_00[4] == 0x00
-    assert (
-        packet_bcast_00.hex() == "55997ebd00ff0212abbfaaaa"
-    )  # pragma: allowlist secret
+    hex_bcast_00 = "55997ebd00ff0212abbfaaaa"  # pragma: allowlist secret
+    assert packet_bcast_00.hex() == hex_bcast_00
 
     packet_bcast_04 = controller._build_packet(CMD_TYPE_POWER, VAL_POWER_ON, zone=0x04)
     assert packet_bcast_04[4] == 0x04
-    assert (
-        packet_bcast_04.hex() == "55997ebd04ff0212abbfaaaa"
-    )  # pragma: allowlist secret
+    hex_bcast_04 = "55997ebd04ff0212abbfaaaa"  # pragma: allowlist secret
+    assert packet_bcast_04.hex() == hex_bcast_04
 
 
 def test_zone_framing_zones(controller: DiodLEDController) -> None:
