@@ -1,0 +1,27 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to DiodeLED DMX Controller",
+        "description": "Enter the network details for your DiodeLED DMX Controller.",
+        "data": {
+          "host": "Host / IP Address",
+          "port": "Port",
+          "name": "Device Name"
+        },
+        "data_description": {
+          "host": "IP address or hostname of the DiodeLED DMX controller on your local network.",
+          "port": "UDP port used by the controller (default is 8899).",
+          "name": "Friendly name for the DMX light entity in Home Assistant."
+        }
+      },
+      "discovery_confirm": {
+        "title": "Discovered DiodeLED DMX Controller",
+        "description": "Do you want to add the DiodeLED DMX Controller at {host} to Home Assistant?"
+      }
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
+    }
+  }
+}
