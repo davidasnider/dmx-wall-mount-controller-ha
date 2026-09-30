@@ -89,7 +89,7 @@ class DiodLEDController:
                 chunk = commands[i : i + chunk_size]
 
                 # Throttling
-                now = time.time()
+                now = time.monotonic()
                 elapsed = now - self._last_send_time
                 if elapsed < THROTTLE_DELAY:
                     await asyncio.sleep(THROTTLE_DELAY - elapsed)
@@ -123,7 +123,7 @@ class DiodLEDController:
                     await asyncio.wait_for(writer.drain(), timeout=2.0)
                     writer.close()
                     await asyncio.wait_for(writer.wait_closed(), timeout=2.0)
-                    self._last_send_time = time.time()
+                    self._last_send_time = time.monotonic()
                 except (asyncio.TimeoutError, ConnectionRefusedError, OSError) as err:
                     if writer is not None:
                         writer.close()
