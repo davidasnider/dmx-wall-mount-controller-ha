@@ -31,6 +31,12 @@ async def main() -> None:
     parser.add_argument(
         "--port", type=int, default=8899, help="Controller TCP Port (default: 8899)"
     )
+    parser.add_argument(
+        "--zone",
+        type=int,
+        default=1,
+        help="Target zone byte (1-3 for zones, 0 or 4 for broadcast; default: 1)",
+    )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
@@ -89,31 +95,46 @@ async def main() -> None:
     try:
         if args.command == "power":
             is_on = args.state == "on"
-            await controller.async_set_power(is_on)
-            cli_logger.info("Sent Power %s frame.", "ON" if is_on else "OFF")
+            await controller.async_set_power(is_on, zone=args.zone)
+            cli_logger.info(
+                "Sent Power %s frame (Zone 0x%02X).",
+                "ON" if is_on else "OFF",
+                args.zone,
+            )
 
         elif args.command == "rgbw":
-            await controller.async_set_rgbw(args.r, args.g, args.b, args.w)
+            await controller.async_set_rgbw(
+                args.r, args.g, args.b, args.w, zone=args.zone
+            )
             cli_logger.info(
-                "Sent RGBW updates for (%s, %s, %s, %s).",
+                "Sent RGBW updates for (%s, %s, %s, %s) (Zone 0x%02X).",
                 args.r,
                 args.g,
                 args.b,
                 args.w,
+                args.zone,
             )
 
         elif args.command == "brightness":
-            await controller.async_set_brightness(args.val)
-            cli_logger.info("Sent brightness level mapping for %s.", args.val)
+            await controller.async_set_brightness(args.val, zone=args.zone)
+            cli_logger.info(
+                "Sent brightness level mapping for %s (Zone 0x%02X).",
+                args.val,
+                args.zone,
+            )
 
         elif args.command == "effect":
             if args.name == "rainbow":
-                await controller.async_set_rainbow(True)
-                cli_logger.info("Activated Rainbow Effect.")
+                await controller.async_set_rainbow(True, zone=args.zone)
+                cli_logger.info("Activated Rainbow Effect (Zone 0x%02X).", args.zone)
 
         elif args.command == "speed":
-            await controller.async_set_speed(args.val)
-            cli_logger.info("Sent speed interval update for step %s.", args.val)
+            await controller.async_set_speed(args.val, zone=args.zone)
+            cli_logger.info(
+                "Sent speed interval update for step %s (Zone 0x%02X).",
+                args.val,
+                args.zone,
+            )
 
     except Exception as e:
         cli_logger.error("Connection Failed: %s", e)

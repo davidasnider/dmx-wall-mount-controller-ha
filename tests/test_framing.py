@@ -40,6 +40,41 @@ def test_power_off_framing(controller: DiodLEDController) -> None:
     assert packet_off.hex() == "55997ebd01ff0212a9bdaaaa"  # pragma: allowlist secret
 
 
+def test_zone_framing_broadcast(controller: DiodLEDController) -> None:
+    """Test packet framing for broadcast candidate bytes 0x00 and 0x04."""
+    packet_bcast_00 = controller._build_packet(CMD_TYPE_POWER, VAL_POWER_ON, zone=0x00)
+    assert packet_bcast_00[4] == 0x00
+    hex_bcast_00 = "55997ebd00ff0212abbfaaaa"  # pragma: allowlist secret
+    assert packet_bcast_00.hex() == hex_bcast_00
+
+    packet_bcast_04 = controller._build_packet(CMD_TYPE_POWER, VAL_POWER_ON, zone=0x04)
+    assert packet_bcast_04[4] == 0x04
+    hex_bcast_04 = "55997ebd04ff0212abbfaaaa"  # pragma: allowlist secret
+    assert packet_bcast_04.hex() == hex_bcast_04
+
+
+def test_zone_framing_zones(controller: DiodLEDController) -> None:
+    """Test packet framing for specific zones 0x01, 0x02, and 0x03."""
+    packet_z1 = controller._build_packet(CMD_TYPE_POWER, VAL_POWER_ON, zone=0x01)
+    assert packet_z1[4] == 0x01
+    assert packet_z1.hex() == "55997ebd01ff0212abbfaaaa"  # pragma: allowlist secret
+
+    packet_z2 = controller._build_packet(CMD_TYPE_POWER, VAL_POWER_ON, zone=0x02)
+    assert packet_z2[4] == 0x02
+    assert packet_z2.hex() == "55997ebd02ff0212abbfaaaa"  # pragma: allowlist secret
+
+    packet_z3 = controller._build_packet(CMD_TYPE_POWER, VAL_POWER_ON, zone=0x03)
+    assert packet_z3[4] == 0x03
+    assert packet_z3.hex() == "55997ebd03ff0212abbfaaaa"  # pragma: allowlist secret
+
+
+def test_zone_framing_rejects_out_of_range(controller: DiodLEDController) -> None:
+    """Test that out-of-range zone values are rejected with an explicit ValueError."""
+    for bad_zone in (-1, 0x100):
+        with pytest.raises(ValueError, match="zone must be a byte"):
+            controller._build_packet(CMD_TYPE_POWER, VAL_POWER_ON, zone=bad_zone)
+
+
 def test_checksum_calculation(controller: DiodLEDController) -> None:
     # CMD_TYPE_RED: [0x08, 0x48], Val: 0xFF
     # Value is capped at 0xFE (254).
