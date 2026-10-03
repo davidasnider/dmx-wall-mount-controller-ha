@@ -13,6 +13,7 @@ class DMXDiscoveryProtocol(asyncio.DatagramProtocol):
         self.hass = hass
         self.callback = callback
         self.transport = None
+        self._seen_devices: set[tuple[str, str]] = set()
 
     def connection_made(self, transport):
         """Handle connection established."""
@@ -38,6 +39,20 @@ class DMXDiscoveryProtocol(asyncio.DatagramProtocol):
                 # network.
                 ip_address = addr[0]
                 mac_address = parts[1]
+
+                # SECURITY: Validate MAC length to prevent memory exhaustion from oversized payloads
+                if len(mac_address) > 64:
+                    return
+
+                # SECURITY: Deduplicate discovery tasks to prevent event loop starvation
+                # from UDP floods. Cap cache size to prevent memory leaks from randomized MACs.
+                device_key = (mac_address, ip_address)
+                if device_key in self._seen_devices:
+                    return
+                if len(self._seen_devices) > 1000:
+                    self._seen_devices.clear()
+                self._seen_devices.add(device_key)
+
                 if ip_address != parts[0]:
                     # SECURITY: Sanitize claimed IP to prevent Log Injection
                     sanitized_claimed_ip = (

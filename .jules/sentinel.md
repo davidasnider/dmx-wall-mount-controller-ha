@@ -6,3 +6,8 @@
 **Vulnerability:** Unsanitized raw UDP payloads were passed directly to `_LOGGER.debug()`.
 **Learning:** Raw network payloads might contain unescaped newline characters `\n` or `\r`. If an attacker sends a crafted payload with these characters, they can write arbitrary lines to the application log, potentially obscuring malicious activity or faking log entries (Log Injection).
 **Prevention:** Always sanitize strings originating from external network boundaries before logging them, particularly by escaping line break characters (e.g., `payload.replace("\n", "\\n").replace("\r", "\\r")`).
+
+## 2026-04-05 - Discovery UDP Flood & Memory Exhaustion Mitigation
+**Vulnerability:** The integration's UDP discovery protocol continuously listened for incoming datagrams and created an asyncio task for every packet matching the `"HF-LPB100"` signature. A malicious actor on the local network could flood port 48899 with spoofed packets containing varied MAC addresses or extremely long strings. Because Home Assistant core creates an entity creation flow per unique task, this would lead to event loop starvation (DoS) and memory exhaustion.
+**Learning:** Even simple local UDP discovery protocols must implement caching/deduplication and strictly bound payload properties (like MAC address length) to prevent resource exhaustion from unauthenticated network inputs.
+**Prevention:** Implement a deduplication cache (e.g., `_seen_devices` set) with a strict length cap, and enforce length limits on parsed fields like MAC addresses before processing.
