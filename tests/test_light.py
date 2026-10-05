@@ -19,6 +19,8 @@ _light_mod.ATTR_BRIGHTNESS = "brightness"
 _light_mod.ATTR_RGBW_COLOR = "rgbw_color"
 _light_mod.ATTR_RGB_COLOR = "rgb_color"
 _light_mod.ATTR_EFFECT = "effect"
+# Matches HA core: homeassistant/components/light/const.py defines EFFECT_OFF = "off"
+_light_mod.EFFECT_OFF = "off"
 _light_mod.ColorMode = unittest.mock.MagicMock()
 _light_mod.ColorMode.RGB = "rgb"
 _light_mod.LightEntityFeature = unittest.mock.MagicMock()
@@ -153,3 +155,56 @@ async def test_turn_off_calls_set_power_false(
 
     # Verify state was updated
     assert light._attr_is_on is False
+
+
+def test_light_icon_and_effect_list(light: DiodLEDLight) -> None:
+    """Test entity icon and effect_list initialization."""
+    assert light._attr_icon == "mdi:led-strip-variant"
+    assert light._attr_effect_list == [_light_mod.EFFECT_OFF, "Rainbow"]
+
+
+@pytest.mark.asyncio
+async def test_effect_clear_with_effect_off(
+    light: DiodLEDLight, mock_controller: Any
+) -> None:
+    """Selecting EFFECT_OFF ('off') should clear the active effect on hardware."""
+    light._attr_effect = "Rainbow"
+    light._attr_is_on = True
+
+    await light.async_turn_on(effect=_light_mod.EFFECT_OFF)
+
+    assert light._attr_effect is None
+    mock_controller.get_power_command.assert_called_once_with(False)
+    mock_controller.async_send_commands.assert_awaited_once_with([("POWER", False)])
+
+
+@pytest.mark.asyncio
+async def test_effect_off_on_already_off_light_sends_nothing(
+    light: DiodLEDLight, mock_controller: Any
+) -> None:
+    """Selecting EFFECT_OFF while the light is off must be a hardware no-op."""
+    light._attr_effect = "Rainbow"  # stale state; async_turn_off does not clear it
+    light._attr_is_on = False
+
+    await light.async_turn_on(effect=_light_mod.EFFECT_OFF)
+
+    assert light._attr_effect is None
+    assert light._attr_is_on is False
+    mock_controller.get_power_command.assert_not_called()
+    mock_controller.async_send_commands.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_effect_off_with_no_active_effect_keeps_light_on(
+    light: DiodLEDLight, mock_controller: Any
+) -> None:
+    """Selecting EFFECT_OFF while on (solid color, no active effect) must stay a hardware no-op and keep the light on."""
+    light._attr_effect = None
+    light._attr_is_on = True
+
+    await light.async_turn_on(effect=_light_mod.EFFECT_OFF)
+
+    assert light._attr_effect is None
+    assert light._attr_is_on is True
+    mock_controller.get_power_command.assert_not_called()
+    mock_controller.async_send_commands.assert_not_awaited()
