@@ -19,6 +19,7 @@ _light_mod.ATTR_BRIGHTNESS = "brightness"
 _light_mod.ATTR_RGBW_COLOR = "rgbw_color"
 _light_mod.ATTR_RGB_COLOR = "rgb_color"
 _light_mod.ATTR_EFFECT = "effect"
+_light_mod.EFFECT_OFF = "none"
 _light_mod.ColorMode = unittest.mock.MagicMock()
 _light_mod.ColorMode.RGB = "rgb"
 _light_mod.LightEntityFeature = unittest.mock.MagicMock()
@@ -153,3 +154,20 @@ async def test_turn_off_calls_set_power_false(
 
     # Verify state was updated
     assert light._attr_is_on is False
+
+
+def test_light_icon_and_effect_list(light: DiodLEDLight) -> None:
+    """Test entity icon and effect_list initialization."""
+    assert light._attr_icon == "mdi:led-strip-variant"
+    assert light._attr_effect_list == ["none", "Rainbow"]
+
+
+@pytest.mark.asyncio
+async def test_effect_clear_with_effect_off(
+    light: DiodLEDLight, mock_controller: Any
+) -> None:
+    """Selecting EFFECT_OFF ('none') should clear the active effect."""
+    light._attr_effect = "Rainbow"
+    await light.async_turn_on(effect="none")
+
+    assert light._attr_effect is None

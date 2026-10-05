@@ -7,6 +7,7 @@ from homeassistant.components.light import (
     ATTR_RGB_COLOR,
     ATTR_RGBW_COLOR,
     ATTR_EFFECT,
+    EFFECT_OFF,
     ColorMode,
     LightEntity,
     LightEntityFeature,
@@ -39,6 +40,7 @@ class DiodLEDLight(LightEntity):
     _attr_color_mode = ColorMode.RGB
     _attr_supported_color_modes = {ColorMode.RGB}
     _attr_supported_features = LightEntityFeature.EFFECT
+    _attr_icon = "mdi:led-strip-variant"
 
     def __init__(self, controller: Any, name: str, entry_id: str) -> None:
         """Initialize the light."""
@@ -51,7 +53,7 @@ class DiodLEDLight(LightEntity):
         self._attr_brightness = 255
         self._attr_rgb_color = (254, 254, 254)
         self._attr_effect = None
-        self._attr_effect_list = ["Rainbow"]
+        self._attr_effect_list = [EFFECT_OFF, "Rainbow"]
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the light on."""
@@ -113,6 +115,9 @@ class DiodLEDLight(LightEntity):
                 if cmd:
                     commands.append(cmd)
                 send_power = False
+            elif self._attr_effect == EFFECT_OFF:
+                self._attr_effect = None
+                LOGGER.debug("Clearing effect on %s", self._attr_name)
 
         if send_power:
             commands.append(self._controller.get_power_command(True))
