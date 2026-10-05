@@ -7,7 +7,6 @@ from homeassistant.components.light import (
     ATTR_RGB_COLOR,
     ATTR_RGBW_COLOR,
     ATTR_EFFECT,
-    EFFECT_OFF,
     ColorMode,
     LightEntity,
     LightEntityFeature,
@@ -18,6 +17,13 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.const import CONF_NAME
 
 from .const import DOMAIN, DEFAULT_NAME, LOGGER
+
+# Local copy of HA core's light EFFECT_OFF ("off",
+# homeassistant/components/light/const.py). Defined here instead of imported
+# because HA only exposes it from 2024.2, while hacs.json declares a
+# 2024.1.0 minimum; importing it would raise ImportError on HA 2024.1.x and
+# make the light entity disappear silently during platform setup.
+EFFECT_OFF = "off"
 
 
 async def async_setup_entry(
