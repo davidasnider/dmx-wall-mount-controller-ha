@@ -94,18 +94,10 @@ class DiodLEDController:
                 if elapsed < THROTTLE_DELAY:
                     await asyncio.sleep(THROTTLE_DELAY - elapsed)
 
-                # Performance optimization: b"".join is significantly faster than
-                # repeatedly calling bytearray.extend in a loop.
-                payload_list = []
-                for item in chunk:
-                    if len(item) == 3:
-                        cmd_type, val, zone = item  # type: ignore[misc]
-                        payload_list.append(self._build_packet(cmd_type, val, zone))
-                    else:
-                        cmd_type, val = item  # type: ignore[misc]
-                        payload_list.append(self._build_packet(cmd_type, val))
-
-                payload = b"".join(payload_list)
+                # Performance optimization: using list comprehension with tuple unpacking
+                # inside b"".join() is significantly faster and more memory efficient
+                # than a for-loop with conditional length checks and appending to a list.
+                payload = b"".join([self._build_packet(*item) for item in chunk])
 
                 LOGGER.debug(
                     "Sending batched command payload to %s:%s - %s",
