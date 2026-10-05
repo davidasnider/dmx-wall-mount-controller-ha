@@ -166,8 +166,12 @@ def test_light_icon_and_effect_list(light: DiodLEDLight) -> None:
 async def test_effect_clear_with_effect_off(
     light: DiodLEDLight, mock_controller: Any
 ) -> None:
-    """Selecting EFFECT_OFF ('none') should clear the active effect."""
+    """Selecting EFFECT_OFF ('none') should clear the active effect on hardware."""
     light._attr_effect = "Rainbow"
+    light._attr_is_on = True
+
     await light.async_turn_on(effect="none")
 
     assert light._attr_effect is None
+    mock_controller.get_power_command.assert_called_once_with(False)
+    mock_controller.async_send_commands.assert_awaited_once_with([("POWER", False)])

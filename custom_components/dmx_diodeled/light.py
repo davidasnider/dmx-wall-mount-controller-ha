@@ -106,6 +106,7 @@ class DiodLEDLight(LightEntity):
             send_power = False
 
         if ATTR_EFFECT in kwargs:
+            had_effect = self._attr_effect not in (None, EFFECT_OFF)
             self._attr_effect = kwargs[ATTR_EFFECT]
             if self._attr_effect == "Rainbow":
                 LOGGER.debug(
@@ -116,7 +117,13 @@ class DiodLEDLight(LightEntity):
                     commands.append(cmd)
                 send_power = False
             elif self._attr_effect == EFFECT_OFF:
+                # No "rainbow off" command exists (get_rainbow_command(False) -> None);
+                # mirror async_set_rainbow(False): stop the effect by powering off.
+                if had_effect and self._attr_is_on:
+                    self._attr_is_on = False
+                    commands.append(self._controller.get_power_command(False))
                 self._attr_effect = None
+                send_power = False
                 LOGGER.debug("Clearing effect on %s", self._attr_name)
 
         if send_power:
