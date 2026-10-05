@@ -59,7 +59,7 @@ class DiodLEDLight(LightEntity):
         """Turn the light on.
 
         Note (intended behavior): an explicit ``turn_on(effect=EFFECT_OFF)``
-        ("none") is the one kwarg combination that does not power on a light
+        ("off") is the one kwarg combination that does not power on a light
         that is already off — it only clears the stored effect state. On a
         light that is on, clearing an active effect does power it off, since
         no "rainbow off" command exists on the hardware.

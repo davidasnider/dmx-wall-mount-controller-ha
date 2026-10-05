@@ -56,7 +56,7 @@ If your controller was not offered automatically (or you prefer to configure it 
 - **Power:** On/Off control.
 - **Brightness:** 0-255 scaling (automatically mapped to the hardware's 8 native steps).
 - **Color:** Full RGB and RGBW color wheel support (White channel intensities are intelligently mixed into the RGB spectrum since the hardware's dedicated white channel is non-functional).
-- **Effects:** Built-in "Rainbow" animation effect selectable from the dashboard; effects can be cleared by selecting "None" (which stops the effect by powering off, since no "rainbow off" command exists on the hardware).
+- **Effects:** Built-in "Rainbow" animation effect selectable from the dashboard; effects can be cleared by selecting "Off" (which stops the effect by powering off, since no "rainbow off" command exists on the hardware).
 
 ## Local Testing & Development
 
