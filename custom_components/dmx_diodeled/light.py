@@ -59,8 +59,12 @@ class DiodLEDLight(LightEntity):
         """Turn the light on."""
         # Note: All updates are optimistic.
 
-        # Check for Power-only or command updates
-        send_power = not self._attr_is_on
+        # Check for Power-only or command updates.
+        # Capture the pre-call power state: self._attr_is_on is set True below,
+        # but branches that reason about the hardware (e.g. clearing an effect)
+        # need to know whether the light was on before this call.
+        was_on = self._attr_is_on
+        send_power = not was_on
         self._attr_is_on = True
 
         LOGGER.debug("Turn On call received for %s", self._attr_name)
@@ -119,9 +123,15 @@ class DiodLEDLight(LightEntity):
             elif self._attr_effect == EFFECT_OFF:
                 # No "rainbow off" command exists (get_rainbow_command(False) -> None);
                 # mirror async_set_rainbow(False): stop the effect by powering off.
-                if had_effect and self._attr_is_on:
+                if had_effect and was_on:
                     self._attr_is_on = False
                     commands.append(self._controller.get_power_command(False))
+                elif not was_on:
+                    # Light is already off (possibly with a stale effect state,
+                    # since async_turn_off does not clear _attr_effect): send
+                    # nothing and do not power it on. Keep HA's state consistent
+                    # with the hardware instead of leaving _attr_is_on True.
+                    self._attr_is_on = False
                 self._attr_effect = None
                 send_power = False
                 LOGGER.debug("Clearing effect on %s", self._attr_name)
