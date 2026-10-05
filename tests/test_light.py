@@ -191,3 +191,19 @@ async def test_effect_off_on_already_off_light_sends_nothing(
     assert light._attr_is_on is False
     mock_controller.get_power_command.assert_not_called()
     mock_controller.async_send_commands.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_effect_off_with_no_active_effect_keeps_light_on(
+    light: DiodLEDLight, mock_controller: Any
+) -> None:
+    """Selecting EFFECT_OFF while on (solid color, no active effect) must stay a hardware no-op and keep the light on."""
+    light._attr_effect = None
+    light._attr_is_on = True
+
+    await light.async_turn_on(effect="none")
+
+    assert light._attr_effect is None
+    assert light._attr_is_on is True
+    mock_controller.get_power_command.assert_not_called()
+    mock_controller.async_send_commands.assert_not_awaited()

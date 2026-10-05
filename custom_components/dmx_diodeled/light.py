@@ -56,7 +56,14 @@ class DiodLEDLight(LightEntity):
         self._attr_effect_list = [EFFECT_OFF, "Rainbow"]
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Turn the light on."""
+        """Turn the light on.
+
+        Note (intended behavior): an explicit ``turn_on(effect=EFFECT_OFF)``
+        ("none") is the one kwarg combination that does not power on a light
+        that is already off — it only clears the stored effect state. On a
+        light that is on, clearing an active effect does power it off, since
+        no "rainbow off" command exists on the hardware.
+        """
         # Note: All updates are optimistic.
 
         # Check for Power-only or command updates.
