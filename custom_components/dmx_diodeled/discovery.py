@@ -59,6 +59,10 @@ class DMXDiscoveryProtocol(asyncio.DatagramProtocol):
 
     def datagram_received(self, data: bytes, addr: tuple[str, int]) -> None:
         """Handle received datagram."""
+        # SECURITY: Drop overly large UDP packets to prevent memory exhaustion and DoS
+        if len(data) > 1024:
+            return
+
         # Performance optimization: Fast-path reject unrelated broadcast packets
         # before expensive string decoding and memory allocation.
         if b"HF-LPB100" not in data:

@@ -11,3 +11,8 @@
 **Vulnerability:** The integration's UDP discovery protocol continuously listened for incoming datagrams and created an asyncio task for every packet matching the `"HF-LPB100"` signature. A malicious actor on the local network could flood port 48899 with spoofed packets containing varied MAC addresses or extremely long strings. Because Home Assistant core creates an entity creation flow per unique task, this would lead to event loop starvation (DoS) and memory exhaustion.
 **Learning:** Even simple local UDP discovery protocols must implement caching/deduplication and strictly bound payload properties (like MAC address length) to prevent resource exhaustion from unauthenticated network inputs.
 **Prevention:** Implement a deduplication cache (e.g., `_seen_devices` set) with a strict length cap, and enforce length limits on parsed fields like MAC addresses before processing.
+
+## 2026-10-10 - Unbounded UDP Datagram DoS
+**Vulnerability:** The `datagram_received` method accepted and processed UDP packets of any size, leading to potential memory exhaustion before parsing limits could take effect.
+**Learning:** Even if individual fields (like MAC addresses) are length-capped later in the pipeline, the raw data must be bounded at the very edge of the network listener to prevent attackers from causing Out-Of-Memory (OOM) errors with massive payloads.
+**Prevention:** Enforce a strict, hard maximum length check (`if len(data) > MAX_EXPECTED: return`) as the absolute first operation in any network callback.
