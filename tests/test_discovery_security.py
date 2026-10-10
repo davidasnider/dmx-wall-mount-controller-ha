@@ -92,6 +92,7 @@ async def test_dmx_discovery_oversized_packet_rejected():
     hass.async_create_task.assert_not_called()
     callback.assert_not_called()
 
+
 @pytest.mark.asyncio
 async def test_dmx_discovery_unique_mac_flood_is_rate_limited():
     """A rotating-unique-MAC flood must not spawn unbounded discovery tasks.
