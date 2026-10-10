@@ -81,6 +81,18 @@ async def test_dmx_discovery_oversized_mac_rejected():
 
 
 @pytest.mark.asyncio
+async def test_dmx_discovery_oversized_packet_rejected():
+    """UDP packets larger than 1024 bytes must be dropped immediately."""
+    hass, callback, protocol = _make_protocol()
+
+    payload = b"A" * 1025
+    addr = ("192.168.1.50", 43210)
+    protocol.datagram_received(payload, addr)
+
+    hass.async_create_task.assert_not_called()
+    callback.assert_not_called()
+
+@pytest.mark.asyncio
 async def test_dmx_discovery_unique_mac_flood_is_rate_limited():
     """A rotating-unique-MAC flood must not spawn unbounded discovery tasks.
 
