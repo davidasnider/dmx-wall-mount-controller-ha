@@ -1,18 +1,18 @@
 import logging
 import sys
 import os
-import unittest.mock
+from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 # Mock Home Assistant modules so tests can run without the full core platform installed
-sys.modules["homeassistant"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.config_entries"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.const"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.core"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.components"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.components.light"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.helpers"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.helpers.entity_platform"] = unittest.mock.MagicMock()
+sys.modules["homeassistant"] = MagicMock()
+sys.modules["homeassistant.config_entries"] = MagicMock()
+sys.modules["homeassistant.const"] = MagicMock()
+sys.modules["homeassistant.core"] = MagicMock()
+sys.modules["homeassistant.components"] = MagicMock()
+sys.modules["homeassistant.components.light"] = MagicMock()
+sys.modules["homeassistant.helpers"] = MagicMock()
+sys.modules["homeassistant.helpers.entity_platform"] = MagicMock()
 
 # Inject relative path for custom_components
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -34,16 +34,16 @@ class MockHomeAssistant:
         # A plain MagicMock would leave the coroutine produced by the async
         # callback neither awaited nor scheduled, which triggers
         # "coroutine was never awaited" RuntimeWarnings. Consume it instead.
-        self.async_create_task = unittest.mock.MagicMock(side_effect=_consume)
+        self.async_create_task = MagicMock(side_effect=_consume)
 
 
 @pytest.mark.asyncio
 async def test_dmx_discovery_protocol_valid_payload():
     hass = MockHomeAssistant()
-    callback = unittest.mock.AsyncMock()
+    callback = AsyncMock()
 
     protocol = DMXDiscoveryProtocol(hass, callback)
-    protocol.connection_made(unittest.mock.MagicMock())
+    protocol.connection_made(MagicMock())
 
     payload = b"192.168.1.50,AABBCCDDEEFF,HF-LPB100\n"
     addr = ("192.168.1.50", 43210)
@@ -59,10 +59,10 @@ async def test_dmx_discovery_protocol_valid_payload():
 @pytest.mark.asyncio
 async def test_dmx_discovery_protocol_invalid_payload():
     hass = MockHomeAssistant()
-    callback = unittest.mock.AsyncMock()
+    callback = AsyncMock()
 
     protocol = DMXDiscoveryProtocol(hass, callback)
-    protocol.connection_made(unittest.mock.MagicMock())
+    protocol.connection_made(MagicMock())
 
     payload = b"invalid_data"
     addr = ("192.168.1.50", 43210)
@@ -75,10 +75,10 @@ async def test_dmx_discovery_protocol_invalid_payload():
 @pytest.mark.asyncio
 async def test_dmx_discovery_protocol_wrong_device():
     hass = MockHomeAssistant()
-    callback = unittest.mock.AsyncMock()
+    callback = AsyncMock()
 
     protocol = DMXDiscoveryProtocol(hass, callback)
-    protocol.connection_made(unittest.mock.MagicMock())
+    protocol.connection_made(MagicMock())
 
     payload = b"192.168.1.50,AABBCCDDEEFF,OTHER-DEVICE"
     addr = ("192.168.1.50", 43210)
@@ -92,10 +92,10 @@ async def test_dmx_discovery_protocol_wrong_device():
 async def test_dmx_discovery_protocol_sender_address_authoritative():
     """The packet source address wins over a spoofed IP in the payload."""
     hass = MockHomeAssistant()
-    callback = unittest.mock.AsyncMock()
+    callback = AsyncMock()
 
     protocol = DMXDiscoveryProtocol(hass, callback)
-    protocol.connection_made(unittest.mock.MagicMock())
+    protocol.connection_made(MagicMock())
 
     # The payload claims a different IP than the host the packet arrived from.
     payload = b"10.0.0.99,AABBCCDDEEFF,HF-LPB100"
@@ -111,10 +111,10 @@ async def test_dmx_discovery_protocol_sender_address_authoritative():
 async def test_log_injection_is_sanitized(caplog):
     """Crafted UDP payload bytes can never forge log lines (CWE-117)."""
     hass = MockHomeAssistant()
-    callback = unittest.mock.AsyncMock()
+    callback = AsyncMock()
 
     protocol = DMXDiscoveryProtocol(hass, callback)
-    protocol.connection_made(unittest.mock.MagicMock())
+    protocol.connection_made(MagicMock())
 
     # Crafted payload: a raw \n embedded in the claimed-IP field (parts[0])
     # and a raw CR in the MAC field (parts[1]). The packet's sender address
