@@ -129,9 +129,9 @@ class DiodLEDLight(LightEntity):
                 LOGGER.debug(
                     "Setting Effect on %s to %s", self._attr_name, self._attr_effect
                 )
-                # Performance optimization: get_rainbow_command(True) always returns a valid command tuple.
-                # Direct append avoids intermediate variable assignment and unnecessary conditional branch.
-                commands.append(self._controller.get_rainbow_command(True))
+                cmd = self._controller.get_rainbow_command(True)
+                if cmd:
+                    commands.append(cmd)
                 send_power = False
             elif self._attr_effect == EFFECT_OFF:
                 # No "rainbow off" command exists (get_rainbow_command(False) -> None);
