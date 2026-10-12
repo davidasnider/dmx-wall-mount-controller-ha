@@ -12,3 +12,6 @@ Replaced multiple extend and append calls on a bytearray with a single bytes ini
 ## 2026-09-21 - ⚡ Bolt: Optimize UDP discovery fast path
 **Learning:** For network listeners processing UDP broadcasts, performing a fast-path raw byte check (e.g., `b"TARGET" not in data`) before doing expensive operations like UTF-8 decoding, string replacement, and splitting prevents unnecessary CPU cycles and memory allocation for unrelated network traffic.
 **Action:** When implementing broadcast listeners, always check for specific protocol signatures in the raw `bytes` payload before decoding or allocating new objects.
+## 2024-10-12 - ⚡ Bolt: Optimize packet construction with bytes formatting
+**Learning:** In CPython, using bytes formatting (`b"%b%c%c%c%c%b" % (prefix, cmd[0], cmd[1], val, chk, suffix)`) is significantly faster than using `bytes([...])` array initialization combined with `+` concatenation for building byte payloads, as it avoids creating intermediate lists and multiple temporary byte allocations.
+**Action:** When micro-optimizing extremely frequent byte manipulation logic in Python, prefer fast string/bytes formatting over list allocation and concatenation to reduce overhead.

@@ -73,8 +73,15 @@ class DiodLEDController:
             else bytes([HEADER, *IDENTIFIER, zone]) + bytes(CONSTANTS[1:])
         )
 
-        return (
-            prefix + bytes([cmd_type[0], cmd_type[1], val, checksum]) + _PACKET_SUFFIX
+        # Performance optimization: bytes formatting is significantly faster than
+        # bytes() concatenation
+        return b"%b%c%c%c%c%b" % (
+            prefix,
+            cmd_type[0],
+            cmd_type[1],
+            val,
+            checksum,
+            _PACKET_SUFFIX,
         )
 
     async def async_send_commands(
