@@ -2,18 +2,18 @@ import asyncio
 import argparse
 import sys
 import os
+import unittest.mock
 import logging
-from unittest.mock import MagicMock
 
 # Mock Home Assistant modules so they don't break the import
-sys.modules["homeassistant"] = MagicMock()
-sys.modules["homeassistant.config_entries"] = MagicMock()
-sys.modules["homeassistant.const"] = MagicMock()
-sys.modules["homeassistant.core"] = MagicMock()
-sys.modules["homeassistant.components"] = MagicMock()
-sys.modules["homeassistant.components.light"] = MagicMock()
-sys.modules["homeassistant.helpers"] = MagicMock()
-sys.modules["homeassistant.helpers.entity_platform"] = MagicMock()
+sys.modules["homeassistant"] = unittest.mock.MagicMock()
+sys.modules["homeassistant.config_entries"] = unittest.mock.MagicMock()
+sys.modules["homeassistant.const"] = unittest.mock.MagicMock()
+sys.modules["homeassistant.core"] = unittest.mock.MagicMock()
+sys.modules["homeassistant.components"] = unittest.mock.MagicMock()
+sys.modules["homeassistant.components.light"] = unittest.mock.MagicMock()
+sys.modules["homeassistant.helpers"] = unittest.mock.MagicMock()
+sys.modules["homeassistant.helpers.entity_platform"] = unittest.mock.MagicMock()
 
 # Put custom_components in path to load module independently of Home Assistant
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
