@@ -40,20 +40,36 @@ jobs:
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.issue.number }}
 
-            Review ONLY the changes in this pull request (`gh pr diff`). The PR branch is checked out.
-            Report only real problems: bugs, security issues, data loss, broken tests, missing error
-            handling that matters. Do NOT report style nits, naming preferences, or speculative refactors.
-            Do not re-raise anything already discussed or resolved in existing PR threads.
-            Report at most 8 findings.
+            You are a senior code reviewer. The PR branch is checked out in full (history included).
+            Start with `gh pr view` and `gh pr diff`, then READ the surrounding code of every changed
+            file (and callers/tests where relevant) before judging. Verify each concern against the
+            actual code; drop anything you cannot confirm. Do not infer intent from the diff alone.
 
-            For each finding use `mcp__github_inline_comment__create_inline_comment` (with `confirmed: true`)
-            on the exact line, stating severity (high/medium/low), the problem, and the fix.
+            Report only real problems: bugs, security issues, data loss, race conditions, broken or
+            missing tests for new behavior, error handling that matters. No style nits, naming
+            preferences, or speculative refactors. Do not re-raise anything already discussed or
+            resolved in existing PR threads. At most 8 findings, most important first.
+
+            FORMAT - every finding is an inline comment via
+            `mcp__github_inline_comment__create_inline_comment` (with `confirmed: true`) on the exact
+            line (use a start/end line range when the fix spans several lines). Each comment must be:
+              1. `**[HIGH|MEDIUM|LOW]** <one-sentence problem>` 
+              2. 1-3 sentences on why it is a problem and when it fails (concrete input/state).
+              3. The fix as code:
+                 - If the fix replaces the commented line(s), use a GitHub suggestion block so it can be
+                   applied with one click:
+                   ```suggestion
+                   <exact replacement lines>
+                   ```
+                 - Otherwise give a fenced code block showing the corrected code or the missing test.
+            Never describe a fix only in prose when you can show the code.
 
             Finish with exactly ONE top-level `gh pr comment` summary:
             - If there are no blocking problems, start it with "LGTM - no issues found."
-            - Otherwise start it with "Changes recommended:" followed by a one-line count.
+            - Otherwise start it with "Changes recommended:" followed by a one-line count, then a
+              short bullet list of the findings (file:line + one phrase each).
             Do not modify any files or push commits.
           claude_args: |
             --model claude-sonnet-5-5
-            --max-turns 12
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Read,Grep,Glob"
+            --max-turns 25
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Read,Grep,Glob"
