@@ -1,10 +1,20 @@
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.9
+  # Ruff runs from the uv-locked dev dependency, so pre-commit, CI and a local
+  # `uv run ruff` always use the same version (no separate rev to keep in sync).
+  - repo: local
     hooks:
       - id: ruff
-        args: [ --fix ]
+        name: ruff
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+        require_serial: true
       - id: ruff-format
+        name: ruff-format
+        entry: uv run ruff format
+        language: system
+        types: [python]
+        require_serial: true
 
   - repo: https://github.com/Yelp/detect-secrets
     rev: v1.5.0

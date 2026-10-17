@@ -1,24 +1,9 @@
-import sys
-import os
 import unittest.mock
 from collections import deque
 
 import pytest
 
-# Mock Home Assistant modules so tests can run without the full core platform installed
-sys.modules["homeassistant"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.config_entries"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.const"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.core"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.components"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.components.light"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.helpers"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.helpers.entity_platform"] = unittest.mock.MagicMock()
-
-# Inject relative path for custom_components
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from custom_components.dmx_diodeled.discovery import DMXDiscoveryProtocol  # noqa: E402
+from custom_components.dmx_diodeled.discovery import DMXDiscoveryProtocol
 
 
 def _consume(coro):

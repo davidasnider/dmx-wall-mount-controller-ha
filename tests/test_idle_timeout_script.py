@@ -1,20 +1,9 @@
 import asyncio
-import sys
 import os
 import unittest.mock
 import pytest
 import importlib.util
 from typing import Any
-
-# Mock Home Assistant modules so tests can run without full core platform
-sys.modules["homeassistant"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.config_entries"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.const"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.core"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.components"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.components.light"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.helpers"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.helpers.entity_platform"] = unittest.mock.MagicMock()
 
 # Load the root test_idle_timeout.py module explicitly
 root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))

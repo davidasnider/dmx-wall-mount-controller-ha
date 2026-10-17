@@ -29,14 +29,19 @@ If you prefer not to use HACS, you can install the integration manually:
 
 ## Automatic Device Discovery
 
-Once the integration is installed and Home Assistant has restarted, no manual IP lookup is required for controllers on the same local network:
+The integration can find controllers on the same local network, so no manual IP lookup is required:
 
 - The integration runs a background listener on UDP port `48899` that watches for the periodic discovery broadcast emitted by compatible (HF-LPB100-based) controllers (`<IP>,<MAC>,<HARDWARE_ID>`).
+- Home Assistant starts the listener only when it loads the integration. It loads the integration when at least one controller is configured, or when `configuration.yaml` has the line below. To discover your **first** controller, add this line and restart Home Assistant (or add the first controller manually, see below):
+
+  ```yaml
+  dmx_diodeled:
+  ```
 - When a controller is detected, Home Assistant automatically shows a notification suggesting to add it. The host is taken from the address the broadcast arrived from, and the port defaults to `8899`.
 - Accepting the prompt immediately creates the integration entry and exposes the light entity (e.g., `light.diodeled_dmx`) — no need to look up the IP in your router.
 - Declining the prompt is safe: the controller is simply not added, and you can add it manually later (see below) or revisit pending discoveries from **Settings** > **Devices & Services**.
 
-> **Note:** Discovery only *offers* to add a controller — it never modifies or removes an existing entry. A controller that has already been added (matched by its MAC address) is skipped, so repeated broadcasts will not create duplicate entries.
+> **Note:** Discovery only *offers* to add a controller — it never removes an entry. A controller that has already been added is skipped (matched by its MAC address, or by its host for controllers added manually), so repeated broadcasts will not create duplicate entries. If a discovered controller's MAC address matches an entry but its IP address changed (for example, a new DHCP lease), discovery updates that entry's host and reloads it.
 
 ## Adding the Device to Home Assistant (Manual)
 
@@ -57,6 +62,7 @@ If your controller was not offered automatically (or you prefer to configure it 
 - **Brightness:** 0-255 scaling (automatically mapped to the hardware's 8 native steps).
 - **Color:** Full RGB and RGBW color wheel support (White channel intensities are intelligently mixed into the RGB spectrum since the hardware's dedicated white channel is non-functional).
 - **Effects:** Built-in "Rainbow" animation effect selectable from the dashboard; effects can be cleared by selecting "Off" (which stops the effect by powering off, since no "rainbow off" command exists on the hardware).
+- **State:** The controller cannot report its state, so Home Assistant shows the last state it sent (an *assumed* state, with separate on/off buttons to resync the light). This state is restored after a Home Assistant restart. If a command cannot reach the controller, Home Assistant shows an error and keeps the previous state.
 
 ## Local Testing & Development
 
@@ -66,7 +72,7 @@ Requires `uv` installed for dependency abstraction.
 
 *Note: The CLI script and the integration enforce hardware-specific constraints (e.g., maximum RGB color intensities of 254 and a 0.1s socket throttle delay) as verified in hardware testing.*
 
-*Note: The codebase has been fully annotated with Python type hints to improve developer experience, tooling support, and maintainability. Project dependencies have also been updated, including upgrading `urllib3` to `2.7.0`, `idna` to `3.15`, and `requests` to `2.33.1`, and adding `typing-extensions`.*
+*Note: The codebase has been fully annotated with Python type hints to improve developer experience, tooling support, and maintainability.*
 
 ### 1. Power State Testing
 
