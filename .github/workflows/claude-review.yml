@@ -1,7 +1,7 @@
 name: Claude Code Review
 
 # Triggered ONLY when the PR Review Loop (or a human) comments "@claude review"
-# on a pull request. No automatic run on every push, so no wasted tokens.
+# on a pull request (owner or the sniderbot loop account). No automatic run on every push, so no wasted tokens.
 # Copy to <repo>/.github/workflows/claude-review.yml
 
 on:
@@ -17,7 +17,8 @@ jobs:
     if: >-
       github.event.issue.pull_request &&
       contains(github.event.comment.body, '@claude review') &&
-      github.event.comment.user.login == github.repository_owner
+      (github.event.comment.user.login == github.repository_owner ||
+       github.event.comment.user.login == 'sniderbot')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
