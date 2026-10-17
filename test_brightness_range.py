@@ -24,15 +24,21 @@ import shutil
 import unittest.mock
 import logging
 
-# Mock Home Assistant modules so they don't break the import
-sys.modules["homeassistant"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.config_entries"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.const"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.core"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.components"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.components.light"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.helpers"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.helpers.entity_platform"] = unittest.mock.MagicMock()
+# Mock Home Assistant modules so they don't break the import. setdefault keeps
+# the shared stubs from tests/conftest.py when a unit test imports this script.
+sys.modules.setdefault("homeassistant", unittest.mock.MagicMock())
+sys.modules.setdefault("homeassistant.config_entries", unittest.mock.MagicMock())
+sys.modules.setdefault("homeassistant.const", unittest.mock.MagicMock())
+sys.modules.setdefault("homeassistant.core", unittest.mock.MagicMock())
+sys.modules.setdefault("homeassistant.components", unittest.mock.MagicMock())
+sys.modules.setdefault("homeassistant.components.light", unittest.mock.MagicMock())
+sys.modules.setdefault("homeassistant.helpers", unittest.mock.MagicMock())
+sys.modules.setdefault(
+    "homeassistant.helpers.entity_platform", unittest.mock.MagicMock()
+)
+sys.modules.setdefault(
+    "homeassistant.helpers.config_validation", unittest.mock.MagicMock()
+)
 
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 

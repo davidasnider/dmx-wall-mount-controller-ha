@@ -18,6 +18,9 @@ class DiodLEDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the initial step."""
         errors = {}
         if user_input is not None:
+            # Manual entries have no MAC address (and so no unique_id), so
+            # dedupe them by host instead.
+            self._async_abort_entries_match({CONF_HOST: user_input[CONF_HOST]})
             # We could add a connection test here
             # But the PRD says it's purely write-only, so a simple check is enough
             return self.async_create_entry(
@@ -55,6 +58,10 @@ class DiodLEDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             mac = mac.strip().lower()
             await self.async_set_unique_id(mac)
             self._abort_if_unique_id_configured(updates={CONF_HOST: host})
+
+        # A manually added entry for this host has no unique_id, so the MAC
+        # check above cannot match it; do not offer the controller again.
+        self._async_abort_entries_match({CONF_HOST: host})
 
         self.context["title_placeholders"] = {"host": host}
 

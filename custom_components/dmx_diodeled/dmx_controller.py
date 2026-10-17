@@ -153,16 +153,21 @@ class DiodLEDController:
         )
         return (CMD_TYPE_BRIGHTNESS, val, zone)
 
-    def get_rgbw_commands(
-        self, r: int, g: int, b: int, w: int, zone: int = 0x01
+    def get_rgb_commands(
+        self, r: int, g: int, b: int, zone: int = 0x01
     ) -> list[tuple[list[int], int, int]]:
-        """Get a list of RGBW command tuples."""
+        """Get a list of RGB command tuples (no white channel command)."""
         return [
             (CMD_TYPE_RED, r, zone),
             (CMD_TYPE_GREEN, g, zone),
             (CMD_TYPE_BLUE, b, zone),
-            (CMD_TYPE_WHITE, w, zone),
         ]
+
+    def get_rgbw_commands(
+        self, r: int, g: int, b: int, w: int, zone: int = 0x01
+    ) -> list[tuple[list[int], int, int]]:
+        """Get a list of RGBW command tuples."""
+        return [*self.get_rgb_commands(r, g, b, zone=zone), (CMD_TYPE_WHITE, w, zone)]
 
     def get_rainbow_command(
         self, on: bool, zone: int = 0x01

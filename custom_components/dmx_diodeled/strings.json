@@ -11,7 +11,7 @@
         },
         "data_description": {
           "host": "IP address or hostname of the DiodeLED DMX controller on your local network.",
-          "port": "UDP port used by the controller (default is 8899).",
+          "port": "TCP port used by the controller (default is 8899).",
           "name": "Friendly name for the DMX light entity in Home Assistant."
         }
       },

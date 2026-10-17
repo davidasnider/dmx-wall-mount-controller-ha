@@ -10,11 +10,18 @@ from .dmx_controller import DiodLEDController
 from .discovery import async_start_discovery
 from homeassistant.config_entries import SOURCE_INTEGRATION_DISCOVERY
 from homeassistant.const import CONF_MAC
+from homeassistant.helpers import config_validation as cv
 import logging
 
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [Platform.LIGHT]
+
+# Home Assistant calls async_setup (and so starts the discovery listener) only
+# when a config entry or a YAML key for this domain exists. Accepting an empty
+# "dmx_diodeled:" key lets users start discovery before the first controller
+# is added.
+CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
