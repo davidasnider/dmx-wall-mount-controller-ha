@@ -1,25 +1,14 @@
-import sys
-import os
 import unittest.mock
 import pytest
 from typing import Any
 
-# Mock Home Assistant modules so tests can run without the full core platform installed
-sys.modules["homeassistant"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.config_entries"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.const"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.core"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.components"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.components.light"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.helpers"] = unittest.mock.MagicMock()
-sys.modules["homeassistant.helpers.entity_platform"] = unittest.mock.MagicMock()
-
-# Inject relative path for custom_components
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from custom_components.dmx_diodeled.dmx_controller import DiodLEDController  # noqa: E402
-from custom_components.dmx_diodeled.const import (  # noqa: E402
+from custom_components.dmx_diodeled.dmx_controller import DiodLEDController
+from custom_components.dmx_diodeled.const import (
+    CMD_TYPE_BLUE,
+    CMD_TYPE_GREEN,
     CMD_TYPE_POWER,
+    CMD_TYPE_RED,
+    CMD_TYPE_WHITE,
     VAL_POWER_ON,
     VAL_POWER_OFF,
 )
@@ -81,6 +70,21 @@ def test_checksum_calculation(controller: DiodLEDController) -> None:
     # Sum: 0x08 + 0x48 + 0xFE = 0x14E. 0x14E % 256 = 0x4E
     packet_red = controller._build_packet([0x08, 0x48], 0xFF)
     assert packet_red[9] == 0x4E
+
+
+def test_rgb_commands_omit_white(controller: DiodLEDController) -> None:
+    """get_rgb_commands sends R, G, B only; get_rgbw_commands adds white last."""
+    assert controller.get_rgb_commands(10, 20, 30, zone=0x02) == [
+        (CMD_TYPE_RED, 10, 0x02),
+        (CMD_TYPE_GREEN, 20, 0x02),
+        (CMD_TYPE_BLUE, 30, 0x02),
+    ]
+    assert controller.get_rgbw_commands(10, 20, 30, 40, zone=0x02) == [
+        (CMD_TYPE_RED, 10, 0x02),
+        (CMD_TYPE_GREEN, 20, 0x02),
+        (CMD_TYPE_BLUE, 30, 0x02),
+        (CMD_TYPE_WHITE, 40, 0x02),
+    ]
 
 
 @pytest.mark.asyncio

@@ -5,15 +5,17 @@ import os
 import logging
 from unittest.mock import MagicMock
 
-# Mock Home Assistant modules so they don't break the import
-sys.modules["homeassistant"] = MagicMock()
-sys.modules["homeassistant.config_entries"] = MagicMock()
-sys.modules["homeassistant.const"] = MagicMock()
-sys.modules["homeassistant.core"] = MagicMock()
-sys.modules["homeassistant.components"] = MagicMock()
-sys.modules["homeassistant.components.light"] = MagicMock()
-sys.modules["homeassistant.helpers"] = MagicMock()
-sys.modules["homeassistant.helpers.entity_platform"] = MagicMock()
+# Mock Home Assistant modules so they don't break the import. setdefault keeps
+# the shared stubs from tests/conftest.py when a unit test imports this script.
+sys.modules.setdefault("homeassistant", MagicMock())
+sys.modules.setdefault("homeassistant.config_entries", MagicMock())
+sys.modules.setdefault("homeassistant.const", MagicMock())
+sys.modules.setdefault("homeassistant.core", MagicMock())
+sys.modules.setdefault("homeassistant.components", MagicMock())
+sys.modules.setdefault("homeassistant.components.light", MagicMock())
+sys.modules.setdefault("homeassistant.helpers", MagicMock())
+sys.modules.setdefault("homeassistant.helpers.entity_platform", MagicMock())
+sys.modules.setdefault("homeassistant.helpers.config_validation", MagicMock())
 
 # Put custom_components in path to load module independently of Home Assistant
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
