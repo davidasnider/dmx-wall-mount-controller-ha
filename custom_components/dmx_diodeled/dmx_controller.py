@@ -99,11 +99,8 @@ class DiodLEDController:
                 # than a for-loop with conditional length checks and appending to a list.
                 payload = b"".join([self._build_packet(*item) for item in chunk])
 
-                # SECURITY: Sanitize IP to prevent Log Injection. repr() escapes
-                # every non-printable character (\n, \r, ESC, NUL, ...), not just
-                # newlines; [1:-1] strips the surrounding quotes. Printable hosts
-                # pass through unchanged.
-                sanitized_ip = repr(self.ip)[1:-1]
+                # SECURITY: Sanitize IP to prevent Log Injection
+                sanitized_ip = self.ip.replace("\n", "\\n").replace("\r", "\\r")
                 LOGGER.debug(
                     "Sending batched command payload to %s:%s - %s",
                     sanitized_ip,
@@ -137,9 +134,7 @@ class DiodLEDController:
                         "Failed to communicate with DMX controller at %s:%s. Error: %s",
                         sanitized_ip,
                         self.port,
-                        # SECURITY: Sanitize the error too — resolver errors can
-                        # embed the (attacker-controlled) host string verbatim.
-                        repr(str(err))[1:-1],
+                        err,
                     )
                     # ValueError can happen if self.ip contains a null byte. Re-raise as OSError
                     # so that upper layers (like LightEntity) handle it gracefully.

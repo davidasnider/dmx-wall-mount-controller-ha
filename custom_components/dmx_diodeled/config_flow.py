@@ -18,22 +18,14 @@ class DiodLEDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the initial step."""
         errors = {}
         if user_input is not None:
-            # SECURITY: Reject hosts that are empty or contain non-printable
-            # characters (e.g. \n, ESC, NUL) so crafted values never reach the
-            # controller or logs. Note str.isprintable() returns True for the
-            # empty string, so that case is checked explicitly.
-            host = user_input.get(CONF_HOST)
-            if not isinstance(host, str) or not host or not host.isprintable():
-                errors["host"] = "invalid_host"
-            else:
-                # Manual entries have no MAC address (and so no unique_id), so
-                # dedupe them by host instead.
-                self._async_abort_entries_match({CONF_HOST: user_input[CONF_HOST]})
-                # We could add a connection test here
-                # But the PRD says it's purely write-only, so a simple check is enough
-                return self.async_create_entry(
-                    title=user_input.get(CONF_NAME, DEFAULT_NAME), data=user_input
-                )
+            # Manual entries have no MAC address (and so no unique_id), so
+            # dedupe them by host instead.
+            self._async_abort_entries_match({CONF_HOST: user_input[CONF_HOST]})
+            # We could add a connection test here
+            # But the PRD says it's purely write-only, so a simple check is enough
+            return self.async_create_entry(
+                title=user_input.get(CONF_NAME, DEFAULT_NAME), data=user_input
+            )
 
         return self.async_show_form(
             step_id="user",
