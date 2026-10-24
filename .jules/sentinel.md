@@ -16,3 +16,8 @@
 **Vulnerability:** The `datagram_received` method accepted and processed UDP packets of any size, leading to potential memory exhaustion before parsing limits could take effect.
 **Learning:** Even if individual fields (like MAC addresses) are length-capped later in the pipeline, the raw data must be bounded at the very edge of the network listener to prevent attackers from causing Out-Of-Memory (OOM) errors with massive payloads.
 **Prevention:** Enforce a strict, hard maximum length check (`if len(data) > MAX_EXPECTED: return`) as the absolute first operation in any network callback.
+
+## 2026-04-05 - Log Injection in DMX Controller Errors
+**Vulnerability:** User-provided or dynamically gathered inputs (like IP address) were being logged directly in `dmx_controller.py` without sanitization. An attacker could craft a payload with newline characters (`\n`, `\r`) to inject fake log entries, obscuring actual logs or confusing administrators.
+**Learning:** Even internal class properties that seem safe (like an IP address configured via HA config flow) can carry unsanitized input if the source of that input (e.g. UDP discovery packets) isn't fully sanitized when passed down to the controller layer. The config flow validation for `CONF_HOST` uses `vol.All(str, vol.Length(min=1, max=253))` but doesn't prevent newlines or other control characters.
+**Prevention:** Always sanitize inputs such as IP addresses or hostnames by replacing `\n` and `\r` before logging them, or sanitize them at the edge (in the config flow) to ensure the system works with clean data throughout.

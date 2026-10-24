@@ -99,9 +99,11 @@ class DiodLEDController:
                 # than a for-loop with conditional length checks and appending to a list.
                 payload = b"".join([self._build_packet(*item) for item in chunk])
 
+                # SECURITY: Sanitize IP to prevent Log Injection
+                sanitized_ip = self.ip.replace("\n", "\\n").replace("\r", "\\r")
                 LOGGER.debug(
                     "Sending batched command payload to %s:%s - %s",
-                    self.ip,
+                    sanitized_ip,
                     self.port,
                     payload.hex(),
                 )
@@ -116,7 +118,12 @@ class DiodLEDController:
                     writer.close()
                     await asyncio.wait_for(writer.wait_closed(), timeout=2.0)
                     self._last_send_time = time.monotonic()
-                except (asyncio.TimeoutError, ConnectionRefusedError, OSError) as err:
+                except (
+                    asyncio.TimeoutError,
+                    ConnectionRefusedError,
+                    OSError,
+                    ValueError,
+                ) as err:
                     if writer is not None:
                         writer.close()
                         try:
@@ -125,10 +132,14 @@ class DiodLEDController:
                             pass
                     LOGGER.error(
                         "Failed to communicate with DMX controller at %s:%s. Error: %s",
-                        self.ip,
+                        sanitized_ip,
                         self.port,
                         err,
                     )
+                    # ValueError can happen if self.ip contains a null byte. Re-raise as OSError
+                    # so that upper layers (like LightEntity) handle it gracefully.
+                    if isinstance(err, ValueError):
+                        raise OSError(f"Invalid IP address: {err}") from err
                     raise
 
     async def async_send_command(
