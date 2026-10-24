@@ -85,6 +85,12 @@ class DiodLEDController:
         chunk_size = CMD_CHUNK_SIZE
 
         async with self._lock:
+            # SECURITY: Escape all control/non-printable chars to prevent Log Injection.
+            # Computed once here (the host cannot change mid-call) rather than on every
+            # chunk. ascii() escapes every non-printable and non-ASCII character, not
+            # just \n/\r, so e.g. NUL, ESC and U+2028 can never reach the logs raw.
+            sanitized_ip = ascii(str(self.ip))[1:-1]
+
             for i in range(0, len(commands), chunk_size):
                 chunk = commands[i : i + chunk_size]
 
@@ -99,8 +105,6 @@ class DiodLEDController:
                 # than a for-loop with conditional length checks and appending to a list.
                 payload = b"".join([self._build_packet(*item) for item in chunk])
 
-                # SECURITY: Sanitize IP to prevent Log Injection
-                sanitized_ip = self.ip.replace("\n", "\\n").replace("\r", "\\r")
                 LOGGER.debug(
                     "Sending batched command payload to %s:%s - %s",
                     sanitized_ip,
@@ -130,11 +134,14 @@ class DiodLEDController:
                             await asyncio.wait_for(writer.wait_closed(), timeout=2.0)
                         except (asyncio.TimeoutError, ConnectionRefusedError, OSError):
                             pass
+                    # SECURITY: Escape the error text as well; OSError/gaierror/UnicodeError
+                    # messages can echo attacker-influenced host text. ascii() leaves
+                    # ordinary error strings unchanged.
                     LOGGER.error(
                         "Failed to communicate with DMX controller at %s:%s. Error: %s",
                         sanitized_ip,
                         self.port,
-                        err,
+                        ascii(err)[1:-1],
                     )
                     # ValueError can happen if self.ip contains a null byte. Re-raise as OSError
                     # so that upper layers (like LightEntity) handle it gracefully.
