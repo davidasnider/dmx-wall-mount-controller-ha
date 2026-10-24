@@ -38,6 +38,32 @@ async def test_user_step_creates_entry(flow: DiodLEDConfigFlow) -> None:
 
 
 @pytest.mark.asyncio
+async def test_user_step_rejects_host_with_embedded_newline(
+    flow: DiodLEDConfigFlow,
+) -> None:
+    """A host with a newline (log injection / forged entry) must be rejected."""
+    user_input = {"host": "192.168.1.50\nfake: entry", "port": 8899}
+
+    result = await flow.async_step_user(user_input)
+
+    assert result["type"] == "form"
+    assert result["step_id"] == "user"
+    assert result["errors"]["host"] == "invalid_host"
+
+
+@pytest.mark.asyncio
+async def test_user_step_rejects_host_with_non_printable_chars(
+    flow: DiodLEDConfigFlow,
+) -> None:
+    """ESC, NUL, U+2028 and empty hosts must be rejected before an entry is created."""
+    for host in ("1.2.3.4\x1b[2J", "192.168.1.50\x00", "192.168.1.50\u2028", ""):
+        flow.current_entries = []
+        result = await flow.async_step_user({"host": host, "port": 8899})
+        assert result["type"] == "form"
+        assert result["errors"]["host"] == "invalid_host"
+
+
+@pytest.mark.asyncio
 async def test_user_step_aborts_for_configured_host(flow: DiodLEDConfigFlow) -> None:
     """Adding the same host twice must not create a second entry."""
     flow.current_entries = [_entry({"host": "192.168.1.50", "port": 8899})]
