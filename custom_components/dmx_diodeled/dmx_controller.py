@@ -28,6 +28,8 @@ from .const import (
 
 _PACKET_PREFIX = bytes([HEADER, *IDENTIFIER, *CONSTANTS])
 _PACKET_SUFFIX = bytes(FOOTER)
+_PACKET_HEADER_IDENTIFIER = bytes([HEADER, *IDENTIFIER])
+_PACKET_CONSTANTS_TAIL = bytes(CONSTANTS[1:])
 
 
 class DiodLEDController:
@@ -70,11 +72,11 @@ class DiodLEDController:
         prefix = (
             _PACKET_PREFIX
             if zone == 0x01
-            else bytes([HEADER, *IDENTIFIER, zone]) + bytes(CONSTANTS[1:])
+            else _PACKET_HEADER_IDENTIFIER + bytes((zone,)) + _PACKET_CONSTANTS_TAIL
         )
 
         return (
-            prefix + bytes([cmd_type[0], cmd_type[1], val, checksum]) + _PACKET_SUFFIX
+            prefix + bytes((cmd_type[0], cmd_type[1], val, checksum)) + _PACKET_SUFFIX
         )
 
     async def async_send_commands(
