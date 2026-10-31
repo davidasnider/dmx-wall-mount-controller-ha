@@ -1,3 +1,4 @@
+import asyncio
 import types
 import unittest.mock
 from typing import Any
@@ -5,6 +6,7 @@ from typing import Any
 import pytest
 
 import custom_components.dmx_diodeled as integration
+from custom_components.dmx_diodeled import config_flow
 from custom_components.dmx_diodeled.const import DOMAIN
 from custom_components.dmx_diodeled.dmx_controller import DiodLEDController
 
@@ -132,6 +134,55 @@ async def test_setup_entry_reloads_on_options_change(hass: Any) -> None:
     entry.async_on_unload.assert_called_once_with("remove_listener")
     listener = entry.add_update_listener.call_args[0][0]
     await listener(hass, entry)
+    hass.config_entries.async_reload.assert_awaited_once_with("entry1")
+
+
+@pytest.mark.asyncio
+async def test_reconfigure_triggers_exactly_one_reload(hass: Any) -> None:
+    """A reconfigure must reload the entry exactly once.
+
+    The flow updates the entry only; Home Assistant core fires the entry's
+    registered update listeners on an update, and that listener's reload is
+    the one. A flow that also scheduled its own reload
+    (async_update_reload_and_abort) would overlap a second reload on the
+    single-connection controller.
+    """
+    listeners: list[Any] = []
+
+    def add_update_listener(listener: Any) -> Any:
+        listeners.append(listener)
+        return unittest.mock.Mock()
+
+    entry = types.SimpleNamespace(
+        entry_id="entry1",
+        data={"host": "192.168.1.50"},
+        options={},
+        _update_listeners=listeners,
+        add_update_listener=add_update_listener,
+        async_on_unload=unittest.mock.Mock(),
+    )
+    hass.config_entries.async_reload = unittest.mock.AsyncMock()
+
+    assert await integration.async_setup_entry(hass, entry) is True
+    assert len(listeners) == 1
+
+    flow = config_flow.DiodLEDConfigFlow()
+    flow.hass = hass
+    flow.context["entry"] = entry
+
+    with unittest.mock.patch.object(
+        config_flow, "_async_can_connect", unittest.mock.AsyncMock(return_value=True)
+    ):
+        result = await flow.async_step_reconfigure({"host": "10.1.1.87", "port": 8899})
+
+    assert result == {"type": "abort", "reason": "reconfigure_successful"}
+    assert entry.data["host"] == "10.1.1.87"
+
+    # Core fires update listeners as fire-and-forget tasks; let them run
+    # before counting reloads.
+    for _ in range(3):
+        await asyncio.sleep(0)
+
     hass.config_entries.async_reload.assert_awaited_once_with("entry1")
 
 

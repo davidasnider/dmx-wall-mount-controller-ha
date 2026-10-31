@@ -9,6 +9,7 @@ imports but the stubs do not define fails loudly instead of silently becoming
 a mock.
 """
 
+import asyncio
 import sys
 import types
 from typing import Any
@@ -50,6 +51,9 @@ class ConfigFlow:
         # Entries Home Assistant already has; tests fill this in. Each entry
         # needs ``data`` (dict) and ``unique_id`` attributes.
         self.current_entries: list[Any] = []
+        # Core flows hold the HomeAssistant instance; tests may attach one so
+        # entry-update helpers can fire listeners and schedule reloads.
+        self.hass: Any = None
 
     async def async_set_unique_id(self, unique_id: str | None = None) -> None:
         self.unique_id = unique_id
@@ -86,10 +90,48 @@ class ConfigFlow:
     def _get_reconfigure_entry(self) -> Any:
         return self.context["entry"]
 
-    def async_update_reload_and_abort(
-        self, entry: Any, *, data_updates: dict[str, Any]
+    def _apply_entry_update(
+        self, entry: Any, *, data_updates: dict[str, Any] | None = None
+    ) -> None:
+        """Apply an entry update like Home Assistant core does.
+
+        Core fires every listener registered on the entry (as fire-and-forget
+        tasks) when it is updated, and does not schedule a reload itself.
+        """
+        if data_updates:
+            entry.data.update(data_updates)
+        listeners = getattr(entry, "_update_listeners", None)
+        if self.hass is not None and listeners:
+            # Keep references so the tasks are not garbage-collected mid-flight.
+            pending = getattr(self, "_pending_listener_tasks", [])
+            for listener in list(listeners):
+                pending.append(asyncio.ensure_future(listener(self.hass, entry)))
+            self._pending_listener_tasks = pending
+
+    def async_update_and_abort(
+        self, entry: Any, *, data_updates: dict[str, Any] | None = None
     ) -> dict:
-        entry.data.update(data_updates)
+        """Update the entry; any reload happens in its update listener."""
+        self._apply_entry_update(entry, data_updates=data_updates)
+        return {"type": "abort", "reason": "reconfigure_successful"}
+
+    def async_update_reload_and_abort(
+        self, entry: Any, *, data_updates: dict[str, Any] | None = None
+    ) -> dict:
+        """Update the entry and schedule a reload on top, like core does.
+
+        Faithfully kept so tests catch a regression to it: for an integration
+        whose update listener also reloads, this double-reloads the entry.
+        """
+        self._apply_entry_update(entry, data_updates=data_updates)
+        if self.hass is not None:
+            pending = getattr(self, "_pending_listener_tasks", [])
+            pending.append(
+                asyncio.ensure_future(
+                    self.hass.config_entries.async_reload(entry.entry_id)
+                )
+            )
+            self._pending_listener_tasks = pending
         return {"type": "abort", "reason": "reconfigure_successful"}
 
 

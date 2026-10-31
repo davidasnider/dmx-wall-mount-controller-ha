@@ -74,14 +74,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Reload when the enabled zones change in the options flow.
+    # This listener is the single place entry changes are reloaded (options such
+    # as zones, or data such as host/port), so flows must update the entry without
+    # scheduling a reload of their own (async_update_and_abort, never
+    # async_update_reload_and_abort).
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     return True
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Reload the entry so entities match the newly selected zones."""
+    """Reload the entry when its options or data change.
+
+    This listener is the only place a reload is scheduled, so every kind of
+    entry update (a zone change in the options flow, a host/port reconfigure,
+    or a discovery-driven host update) reloads exactly once.
+    """
     await hass.config_entries.async_reload(entry.entry_id)
 
 

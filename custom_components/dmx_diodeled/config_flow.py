@@ -95,7 +95,12 @@ class DiodLEDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if host != entry.data[CONF_HOST]:
                 self._async_abort_entries_match({CONF_HOST: host})
             if await _async_can_connect(host, port):
-                return self.async_update_reload_and_abort(
+                # Update the entry only; do not use async_update_reload_and_abort
+                # here. Updating the entry fires the update listener registered in
+                # async_setup_entry, and that schedules the one reload. A second,
+                # flow-scheduled reload would overlap it on the single-connection
+                # controller.
+                return self.async_update_and_abort(
                     entry, data_updates={CONF_HOST: host, CONF_PORT: port}
                 )
             errors["base"] = "cannot_connect"
