@@ -66,6 +66,8 @@ The following is a list of features and hardware limits that need to be tested a
 **Conclusion:** The dedicated White channel is broken or unsupported on this controller. While the Home Assistant integration automatically compensates for this by converting requested White values into RGB mixing, the CLI script sends the raw White channel command directly to the hardware for testing purposes.
 
 ## Feature 7: Zone Command Identification (Testing Byte 5)
+**Status:** 🟡 IMPLEMENTED, UNVERIFIED — Zones 2 and 3 can be enabled in the integration options, but the test hardware only has lights on zone 1, so Byte 5 = 02/03 has not been confirmed to route to a physical zone.
+
 **Context:** In all of the 12-byte payloads you successfully captured and copied as a hex stream (such as the Power ON command 55997ebd01ff0212abbfaaaa), Byte 5 was consistently 01. Since your specific controller model (DI-DMX-WIFI-WMUS-3Z-WH) is rated for 3 independent zones, it is highly probable that 01 represents Zone 1.
 **Test to Execute:** Send raw TCP packets to port 8899 where you keep the frame exactly the same as your captured Power ON or Power OFF commands, but change Byte 5 from 01 to 02 and then to 03.
 **Objective:** To verify if the DMX processor accepts sequential integers in Byte 5 to route instructions to independent physical zones.
@@ -115,3 +117,15 @@ uv run python test_controller_cli.py --ip <CONTROLLER_IP> --zone 4 power on
 **Conclusion:** The codebase is fully annotated, ensuring better long-term reliability and clearer interfaces for developers. This includes type hints added to `test_controller_cli.py` and the `test_brightness_range.py` script.
 
 *Note: Scheduled maintenance run complete for version 0.4.61.*
+
+## Hardware Finding: Command Ordering and Repeated Power-On
+**Status:** ✅ TESTED (2026-10-31)
+
+**Test Executed:** With the output ON and blue, sent Power OFF, then a Red color command with no power-on, then Power ON, then Green, then Power ON twice more.
+
+**Result:**
+- A color command sent while the output is OFF is **ignored** — the lights stay off.
+- It is also **not stored**: the following Power ON restored the color from *before* power-off (blue), not the red sent while off.
+- A Power ON sent while the output is already ON has **no visible effect** (no flicker, color unchanged).
+
+**Conclusion:** The integration sends Power ON first on every turn-on, followed by any color, brightness or effect commands.

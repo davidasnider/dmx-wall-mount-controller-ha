@@ -12,16 +12,46 @@
         "data_description": {
           "host": "IP address or hostname of the DiodeLED DMX controller on your local network.",
           "port": "TCP port used by the controller (default is 8899).",
-          "name": "Friendly name for the DMX light entity in Home Assistant."
+          "name": "Friendly name for the controller's device in Home Assistant."
         }
       },
       "discovery_confirm": {
         "title": "Discovered DiodeLED DMX Controller",
         "description": "Do you want to add the DiodeLED DMX Controller at {host} to Home Assistant?"
+      },
+      "reconfigure": {
+        "title": "Reconfigure DiodeLED DMX Controller",
+        "description": "Update the network details if the controller's IP address or port changed.",
+        "data": {
+          "host": "Host / IP Address",
+          "port": "Port"
+        },
+        "data_description": {
+          "host": "IP address or hostname of the DiodeLED DMX controller on your local network.",
+          "port": "TCP port used by the controller (default is 8899)."
+        }
       }
     },
     "abort": {
-      "already_configured": "Device is already configured"
+      "already_configured": "Device is already configured",
+      "reconfigure_successful": "The controller was reconfigured successfully"
+    },
+    "error": {
+      "cannot_connect": "Could not connect to the controller. Check the IP address and port, and close the TouchDial mobile app (the controller accepts only one connection at a time)."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Controller zones",
+        "description": "Select the zones that have lights connected. Each selected zone gets its own light and rainbow speed entities. Only zone 1 has been verified on hardware.",
+        "data": {
+          "zones": "Zones"
+        }
+      }
+    },
+    "error": {
+      "no_zones": "Select at least one zone."
     }
   }
 }

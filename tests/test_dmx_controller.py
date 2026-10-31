@@ -143,3 +143,41 @@ async def test_printable_host_is_logged_verbatim(
     assert any(
         "to 192.168.1.50:6454" in record.getMessage() for record in caplog_debug.records
     )
+
+
+@pytest.mark.asyncio
+async def test_check_connection_succeeds_without_sending() -> None:
+    """A reachable controller passes the check and receives no bytes."""
+    received: list[bytes] = []
+
+    async def _handle(
+        reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        received.append(await reader.read())
+        writer.close()
+
+    server = await asyncio.start_server(_handle, "127.0.0.1", 0)
+    port = server.sockets[0].getsockname()[1]
+    async with server:
+        await DiodLEDController("127.0.0.1", port).async_check_connection()
+        await asyncio.sleep(0.05)
+
+    assert received == [b""]
+
+
+@pytest.mark.asyncio
+async def test_check_connection_refused_raises_oserror() -> None:
+    # Bind and release a port so nothing is listening on it.
+    server = await asyncio.start_server(lambda r, w: None, "127.0.0.1", 0)
+    port = server.sockets[0].getsockname()[1]
+    server.close()
+    await server.wait_closed()
+
+    with pytest.raises(OSError):
+        await DiodLEDController("127.0.0.1", port).async_check_connection()
+
+
+@pytest.mark.asyncio
+async def test_check_connection_null_byte_host_raises_oserror() -> None:
+    with pytest.raises(OSError, match="Invalid IP address"):
+        await DiodLEDController("127.0.0.1\x00", 8899).async_check_connection()

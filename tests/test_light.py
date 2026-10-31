@@ -16,32 +16,44 @@ def mock_controller() -> Any:
     controller.ip = "192.0.2.10"
     controller.port = 8899
     # Mock the synchronous command generators since they are called directly
+    # Each generator accepts the zone keyword the light passes, like the real one.
     controller.get_rgb_commands = unittest.mock.Mock(
-        side_effect=lambda r, g, b: [
+        side_effect=lambda r, g, b, zone=1: [
             ("RED", r),
             ("GREEN", g),
             ("BLUE", b),
         ]
     )
     controller.get_brightness_command = unittest.mock.Mock(
-        side_effect=lambda x: ("BRIGHTNESS", x)
+        side_effect=lambda x, zone=1: ("BRIGHTNESS", x)
     )
     controller.get_power_command = unittest.mock.Mock(
-        side_effect=lambda x: ("POWER", x)
+        side_effect=lambda x, zone=1: ("POWER", x)
     )
     controller.get_rainbow_command = unittest.mock.Mock(
-        side_effect=lambda x: ("RAINBOW", x)
+        side_effect=lambda x, zone=1: ("RAINBOW", x)
     )
     controller.get_speed_command = unittest.mock.Mock(
-        side_effect=lambda x: ("SPEED", x)
+        side_effect=lambda x, zone=1: ("SPEED", x)
     )
     return controller
 
 
 @pytest.fixture
-def light(mock_controller: Any) -> DiodLEDLight:
+def entry() -> Any:
+    """A config entry as the light sees it."""
+    return types.SimpleNamespace(
+        entry_id="test_entry_id",
+        data={"host": "192.0.2.10", "name": "Test Light"},
+        options={},
+        unique_id=None,
+    )
+
+
+@pytest.fixture
+def light(mock_controller: Any, entry: Any) -> DiodLEDLight:
     """Create a DiodLEDLight instance with a mock controller."""
-    return DiodLEDLight(mock_controller, "Test Light", "test_entry_id")
+    return DiodLEDLight(mock_controller, entry)
 
 
 @pytest.mark.asyncio
@@ -49,9 +61,9 @@ async def test_rgb_pure_white_capped(light: DiodLEDLight, mock_controller: Any) 
     """Pure white RGB (255,255,255) should be capped to (254, 254, 254)."""
     await light.async_turn_on(rgb_color=(255, 255, 255))
 
-    mock_controller.get_rgb_commands.assert_called_once_with(254, 254, 254)
+    mock_controller.get_rgb_commands.assert_called_once_with(254, 254, 254, zone=1)
     assert light._attr_rgb_color == (254, 254, 254)
-    expected_cmds = [("RED", 254), ("GREEN", 254), ("BLUE", 254)]
+    expected_cmds = [("POWER", True), ("RED", 254), ("GREEN", 254), ("BLUE", 254)]
     mock_controller.async_send_commands.assert_awaited_once_with(expected_cmds)
 
 
@@ -62,9 +74,9 @@ async def test_rgb_mixed_color_no_extraction(
     """Mixed RGB values should NOT extract a W component."""
     await light.async_turn_on(rgb_color=(200, 100, 50))
 
-    mock_controller.get_rgb_commands.assert_called_once_with(200, 100, 50)
+    mock_controller.get_rgb_commands.assert_called_once_with(200, 100, 50, zone=1)
     assert light._attr_rgb_color == (200, 100, 50)
-    expected_cmds = [("RED", 200), ("GREEN", 100), ("BLUE", 50)]
+    expected_cmds = [("POWER", True), ("RED", 200), ("GREEN", 100), ("BLUE", 50)]
     mock_controller.async_send_commands.assert_awaited_once_with(expected_cmds)
 
 
@@ -73,9 +85,9 @@ async def test_rgb_pure_red_capped(light: DiodLEDLight, mock_controller: Any) ->
     """Pure red (255,0,0) should be capped to (254,0,0)."""
     await light.async_turn_on(rgb_color=(255, 0, 0))
 
-    mock_controller.get_rgb_commands.assert_called_once_with(254, 0, 0)
+    mock_controller.get_rgb_commands.assert_called_once_with(254, 0, 0, zone=1)
     assert light._attr_rgb_color == (254, 0, 0)
-    expected_cmds = [("RED", 254), ("GREEN", 0), ("BLUE", 0)]
+    expected_cmds = [("POWER", True), ("RED", 254), ("GREEN", 0), ("BLUE", 0)]
     mock_controller.async_send_commands.assert_awaited_once_with(expected_cmds)
 
 
@@ -86,9 +98,9 @@ async def test_rgb_black_maps_to_all_zeros(
     """Black (0,0,0) should map to (0,0,0)."""
     await light.async_turn_on(rgb_color=(0, 0, 0))
 
-    mock_controller.get_rgb_commands.assert_called_once_with(0, 0, 0)
+    mock_controller.get_rgb_commands.assert_called_once_with(0, 0, 0, zone=1)
     assert light._attr_rgb_color == (0, 0, 0)
-    expected_cmds = [("RED", 0), ("GREEN", 0), ("BLUE", 0)]
+    expected_cmds = [("POWER", True), ("RED", 0), ("GREEN", 0), ("BLUE", 0)]
     mock_controller.async_send_commands.assert_awaited_once_with(expected_cmds)
 
 
@@ -100,9 +112,9 @@ async def test_rgbw_conversion_to_rgb(
     await light.async_turn_on(rgbw_color=(100, 100, 100, 50))
 
     # (100+50, 100+50, 100+50) = (150, 150, 150)
-    mock_controller.get_rgb_commands.assert_called_once_with(150, 150, 150)
+    mock_controller.get_rgb_commands.assert_called_once_with(150, 150, 150, zone=1)
     assert light._attr_rgb_color == (150, 150, 150)
-    expected_cmds = [("RED", 150), ("GREEN", 150), ("BLUE", 150)]
+    expected_cmds = [("POWER", True), ("RED", 150), ("GREEN", 150), ("BLUE", 150)]
     mock_controller.async_send_commands.assert_awaited_once_with(expected_cmds)
 
 
@@ -116,7 +128,7 @@ async def test_turn_off_sends_power_off(
 
     await light.async_turn_off()
 
-    mock_controller.get_power_command.assert_called_once_with(False)
+    mock_controller.get_power_command.assert_called_once_with(False, zone=1)
     mock_controller.async_send_commands.assert_awaited_once_with([("POWER", False)])
     assert light._attr_is_on is False
 
@@ -143,7 +155,7 @@ async def test_effect_clear_with_effect_off(
     await light.async_turn_on(effect=EFFECT_OFF)
 
     assert light._attr_effect is None
-    mock_controller.get_power_command.assert_called_once_with(False)
+    mock_controller.get_power_command.assert_called_once_with(False, zone=1)
     mock_controller.async_send_commands.assert_awaited_once_with([("POWER", False)])
 
 
@@ -277,3 +289,121 @@ async def test_no_previous_state_keeps_defaults(light: DiodLEDLight) -> None:
     assert light._attr_is_on is False
     assert light._attr_brightness == 255
     assert light._attr_rgb_color == (254, 254, 254)
+
+
+@pytest.mark.asyncio
+async def test_turn_on_sends_power_even_when_believed_on(
+    light: DiodLEDLight, mock_controller: Any
+) -> None:
+    """Regression: HA's state can be stale (restored "on" while the lights are
+    off), so a plain turn_on must always send power-on."""
+    light._attr_is_on = True
+
+    await light.async_turn_on()
+
+    mock_controller.async_send_commands.assert_awaited_once_with([("POWER", True)])
+    assert light._attr_is_on is True
+
+
+@pytest.mark.asyncio
+async def test_turn_on_after_restored_on_state_sends_power(
+    light: DiodLEDLight, mock_controller: Any
+) -> None:
+    """Regression: after a restart restores "on", pressing ON must reach the hardware."""
+    light.async_get_last_state = unittest.mock.AsyncMock(
+        return_value=types.SimpleNamespace(state="on", attributes={})
+    )
+    await light.async_added_to_hass()
+
+    await light.async_turn_on()
+
+    mock_controller.async_send_commands.assert_awaited_once_with([("POWER", True)])
+
+
+@pytest.mark.asyncio
+async def test_power_is_sent_before_color_and_brightness(
+    light: DiodLEDLight, mock_controller: Any
+) -> None:
+    """The hardware drops color/brightness commands while off, so power goes first."""
+    await light.async_turn_on(brightness=255, rgb_color=(10, 20, 30))
+
+    mock_controller.async_send_commands.assert_awaited_once_with(
+        [("POWER", True), ("BRIGHTNESS", 255), ("RED", 10), ("GREEN", 20), ("BLUE", 30)]
+    )
+
+
+@pytest.mark.asyncio
+async def test_power_is_sent_before_rainbow_effect(
+    light: DiodLEDLight, mock_controller: Any
+) -> None:
+    await light.async_turn_on(effect="Rainbow")
+
+    mock_controller.async_send_commands.assert_awaited_once_with(
+        [("POWER", True), ("RAINBOW", True)]
+    )
+    assert light._attr_effect == "Rainbow"
+
+
+def test_zone_one_light_uses_device_name_and_legacy_unique_id(
+    light: DiodLEDLight,
+) -> None:
+    """Zone 1 keeps the pre-zone unique ID so existing entities are preserved."""
+    assert light._attr_name is None
+    assert light._attr_unique_id == "diodeled_dmx_test_entry_id"
+
+
+@pytest.mark.asyncio
+async def test_other_zone_light_targets_its_zone(
+    mock_controller: Any, entry: Any
+) -> None:
+    light = DiodLEDLight(mock_controller, entry, zone=2)
+
+    assert light._attr_name == "Zone 2"
+    assert light._attr_unique_id == "diodeled_dmx_test_entry_id_zone_2"
+
+    await light.async_turn_on(rgb_color=(1, 2, 3))
+    await light.async_turn_off()
+
+    mock_controller.get_power_command.assert_any_call(True, zone=2)
+    mock_controller.get_power_command.assert_any_call(False, zone=2)
+    mock_controller.get_rgb_commands.assert_called_once_with(1, 2, 3, zone=2)
+
+
+def test_device_info_for_manual_entry(light: DiodLEDLight) -> None:
+    info = light._attr_device_info
+
+    assert info["identifiers"] == {("dmx_diodeled", "test_entry_id")}
+    assert info["manufacturer"] == "DiodeLED"
+    assert info["model"] == "DI-DMX-WIFI-WMUS-3Z-WH"
+    assert info["name"] == "Test Light"
+    assert info["configuration_url"] == "http://192.0.2.10"
+    # Manual entries have no MAC.
+    assert "connections" not in info
+
+
+def test_device_info_for_discovered_entry_has_mac(
+    mock_controller: Any, entry: Any
+) -> None:
+    entry.unique_id = "aabbccddeeff"
+
+    info = DiodLEDLight(mock_controller, entry)._attr_device_info
+
+    assert info["connections"] == {("mac", "aa:bb:cc:dd:ee:ff")}
+
+
+@pytest.mark.asyncio
+async def test_setup_entry_creates_one_light_per_enabled_zone(
+    mock_controller: Any, entry: Any
+) -> None:
+    from custom_components.dmx_diodeled import light as light_platform
+
+    entry.options = {"zones": [1, 3]}
+    hass = types.SimpleNamespace(
+        data={"dmx_diodeled": {"test_entry_id": mock_controller}}
+    )
+    add_entities = unittest.mock.Mock()
+
+    await light_platform.async_setup_entry(hass, entry, add_entities)
+
+    lights = add_entities.call_args[0][0]
+    assert [entity._zone for entity in lights] == [1, 3]

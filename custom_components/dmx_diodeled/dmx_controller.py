@@ -23,6 +23,7 @@ from .const import (
     SPEED_MIN,
     SPEED_MAX,
     CMD_CHUNK_SIZE,
+    CONNECT_TIMEOUT,
 )
 
 
@@ -150,6 +151,31 @@ class DiodLEDController:
                     if isinstance(err, ValueError):
                         raise OSError(f"Invalid IP address: {err}") from err
                     raise
+
+    async def async_check_connection(self) -> None:
+        """Open and close a TCP connection, raising OSError if it fails.
+
+        Nothing is sent: the controller never answers, so a successful connect
+        is the only reachability signal available. The send lock is held
+        because the hardware accepts only one TCP connection at a time.
+        """
+        async with self._lock:
+            writer = None
+            try:
+                _, writer = await asyncio.wait_for(
+                    asyncio.open_connection(self.ip, self.port),
+                    timeout=CONNECT_TIMEOUT,
+                )
+            except ValueError as err:
+                # Same null-byte guard as async_send_commands: surface it as OSError.
+                raise OSError(f"Invalid IP address: {err}") from err
+            finally:
+                if writer is not None:
+                    writer.close()
+                    try:
+                        await asyncio.wait_for(writer.wait_closed(), timeout=2.0)
+                    except (asyncio.TimeoutError, OSError):
+                        pass
 
     async def async_send_command(
         self, cmd_type: list[int], val: int, zone: int = 0x01

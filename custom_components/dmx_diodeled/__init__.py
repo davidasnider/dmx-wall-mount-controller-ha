@@ -11,11 +11,13 @@ from .discovery import async_start_discovery
 from homeassistant.config_entries import SOURCE_INTEGRATION_DISCOVERY
 from homeassistant.const import CONF_MAC
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_registry as er
+from .entity import configured_zones, zone_unique_id
 import logging
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [Platform.LIGHT]
+PLATFORMS = [Platform.LIGHT, Platform.NUMBER]
 
 # Home Assistant calls async_setup (and so starts the discovery listener) only
 # when a config entry or a YAML key for this domain exists. Accepting an empty
@@ -68,9 +70,46 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = controller
 
+    _async_remove_disabled_zone_entities(hass, entry)
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    # This listener is the single place entry changes are reloaded (options such
+    # as zones, or data such as host/port), so flows must update the entry without
+    # scheduling a reload of their own (async_update_and_abort, never
+    # async_update_reload_and_abort).
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+
     return True
+
+
+async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reload the entry when its options or data change.
+
+    This listener is the only place a reload is scheduled, so every kind of
+    entry update (a zone change in the options flow, a host/port reconfigure,
+    or a discovery-driven host update) reloads exactly once.
+    """
+    await hass.config_entries.async_reload(entry.entry_id)
+
+
+def _async_remove_disabled_zone_entities(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> None:
+    """Remove registry entries for zones that are no longer enabled.
+
+    Without this, a zone switched off in the options would linger as an
+    "unavailable" entity forever.
+    """
+    wanted = {
+        zone_unique_id(entry.entry_id, zone, suffix)
+        for zone in configured_zones(entry)
+        for suffix in ("", "speed")
+    }
+    registry = er.async_get(hass)
+    for entity_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if entity_entry.unique_id not in wanted:
+            registry.async_remove(entity_entry.entity_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

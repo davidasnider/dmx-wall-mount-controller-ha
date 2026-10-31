@@ -9,6 +9,18 @@ DOMAIN: str = "dmx_diodeled"
 DEFAULT_PORT: int = 8899
 DEFAULT_NAME: str = "DiodeLED DMX Controller"
 
+MANUFACTURER: str = "DiodeLED"
+MODEL: str = "DI-DMX-WIFI-WMUS-3Z-WH"
+
+# Zones (Byte 5 of every packet). Only zone 1 is verified on hardware; zones 2
+# and 3 follow the documented byte layout and are opt-in via the options flow.
+CONF_ZONES: str = "zones"
+ZONES: list[int] = [1, 2, 3]
+DEFAULT_ZONES: list[int] = [1]
+
+# Seconds to wait for the controller when checking the connection in the config flow
+CONNECT_TIMEOUT: float = 5.0
+
 # Command Frame Components
 HEADER: int = 0x55
 IDENTIFIER: list[int] = [0x99, 0x7E, 0xBD]

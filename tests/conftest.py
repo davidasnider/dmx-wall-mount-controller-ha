@@ -9,6 +9,7 @@ imports but the stubs do not define fails loudly instead of silently becoming
 a mock.
 """
 
+import asyncio
 import sys
 import types
 from typing import Any
@@ -50,17 +51,36 @@ class ConfigFlow:
         # Entries Home Assistant already has; tests fill this in. Each entry
         # needs ``data`` (dict) and ``unique_id`` attributes.
         self.current_entries: list[Any] = []
+        # Core flows hold the HomeAssistant instance; tests may attach one so
+        # entry-update helpers can fire listeners and schedule reloads.
+        self.hass: Any = None
 
     async def async_set_unique_id(self, unique_id: str | None = None) -> None:
         self.unique_id = unique_id
 
     def _abort_if_unique_id_configured(
-        self, updates: dict[str, Any] | None = None
+        self,
+        updates: dict[str, Any] | None = None,
+        reload_on_update: bool = True,
     ) -> None:
+        """Abort if this unique ID is already configured.
+
+        Faithful to Home Assistant core: updating the found entry fires its
+        update listeners, and (with core's default reload_on_update=True) core
+        schedules an extra reload of the updated entry on top.
+        """
         for entry in self.current_entries:
             if self.unique_id is not None and entry.unique_id == self.unique_id:
                 if updates:
-                    entry.data.update(updates)
+                    self._apply_entry_update(entry, data_updates=updates)
+                    if reload_on_update and self.hass is not None:
+                        pending = getattr(self, "_pending_listener_tasks", [])
+                        pending.append(
+                            asyncio.ensure_future(
+                                self.hass.config_entries.async_reload(entry.entry_id)
+                            )
+                        )
+                        self._pending_listener_tasks = pending
                 raise AbortFlow("already_configured")
 
     def _async_abort_entries_match(self, match_dict: dict[str, Any]) -> None:
@@ -77,12 +97,95 @@ class ConfigFlow:
     def async_show_form(self, *, step_id: str, **kwargs: Any) -> dict:
         return {"type": "form", "step_id": step_id, **kwargs}
 
+    def add_suggested_values_to_schema(
+        self, data_schema: Any, suggested_values: dict[str, Any]
+    ) -> dict:
+        # Returned as a dict so tests can check which values are suggested.
+        return {"schema": data_schema, "suggested_values": suggested_values}
+
+    def _get_reconfigure_entry(self) -> Any:
+        return self.context["entry"]
+
+    def _fire_entry_update_listeners(self, entry: Any) -> None:
+        """Fire every listener registered on the entry, like Home Assistant core."""
+        listeners = getattr(entry, "_update_listeners", None)
+        if self.hass is not None and listeners:
+            # Keep references so the tasks are not garbage-collected mid-flight.
+            pending = getattr(self, "_pending_listener_tasks", [])
+            for listener in list(listeners):
+                pending.append(asyncio.ensure_future(listener(self.hass, entry)))
+            self._pending_listener_tasks = pending
+
+    def _apply_entry_update(
+        self, entry: Any, *, data_updates: dict[str, Any] | None = None
+    ) -> None:
+        """Apply an entry update like Home Assistant core does.
+
+        Core fires every listener registered on the entry (as fire-and-forget
+        tasks) when it is updated, and does not schedule a reload itself.
+        """
+        if data_updates:
+            entry.data.update(data_updates)
+        self._fire_entry_update_listeners(entry)
+
+    def async_update_and_abort(
+        self, entry: Any, *, data_updates: dict[str, Any] | None = None
+    ) -> dict:
+        """Update the entry; any reload happens in its update listener."""
+        self._apply_entry_update(entry, data_updates=data_updates)
+        return {"type": "abort", "reason": "reconfigure_successful"}
+
+    def async_update_reload_and_abort(
+        self, entry: Any, *, data_updates: dict[str, Any] | None = None
+    ) -> dict:
+        """Update the entry and schedule a reload on top, like core does.
+
+        Faithfully kept so tests catch a regression to it: for an integration
+        whose update listener also reloads, this double-reloads the entry.
+        """
+        self._apply_entry_update(entry, data_updates=data_updates)
+        if self.hass is not None:
+            pending = getattr(self, "_pending_listener_tasks", [])
+            pending.append(
+                asyncio.ensure_future(
+                    self.hass.config_entries.async_reload(entry.entry_id)
+                )
+            )
+            self._pending_listener_tasks = pending
+        return {"type": "abort", "reason": "reconfigure_successful"}
+
+
+class OptionsFlow:
+    """Minimal stand-in for homeassistant.config_entries.OptionsFlow."""
+
+    # Home Assistant sets this on the flow before the first step runs.
+    config_entry: Any = None
+
+    def async_create_entry(self, *, data: dict[str, Any]) -> dict:
+        return {"type": "create_entry", "data": data}
+
+    def async_show_form(self, *, step_id: str, **kwargs: Any) -> dict:
+        return {"type": "form", "step_id": step_id, **kwargs}
+
 
 class LightEntity:
     """Minimal stand-in for homeassistant.components.light.LightEntity."""
 
     def async_write_ha_state(self) -> None:
         pass
+
+
+class NumberEntity:
+    """Minimal stand-in for homeassistant.components.number.NumberEntity."""
+
+    def async_write_ha_state(self) -> None:
+        pass
+
+
+def format_mac(mac: str) -> str:
+    """Stand-in for homeassistant.helpers.device_registry.format_mac."""
+    mac = mac.lower().replace(":", "").replace("-", "")
+    return ":".join(mac[i : i + 2] for i in range(0, 12, 2))
 
 
 class RestoreEntity:
@@ -105,6 +208,7 @@ _install_module(
     ConfigEntry=MagicMock,
     ConfigFlow=ConfigFlow,
     ConfigFlowResult=dict,
+    OptionsFlow=OptionsFlow,
     CONN_CLASS_LOCAL_PUSH="local_push",
     SOURCE_INTEGRATION_DISCOVERY="integration_discovery",
 )
@@ -115,10 +219,10 @@ _install_module(
     CONF_NAME="name",
     CONF_PORT="port",
     EVENT_HOMEASSISTANT_STOP="homeassistant_stop",
-    Platform=types.SimpleNamespace(LIGHT="light"),
+    Platform=types.SimpleNamespace(LIGHT="light", NUMBER="number"),
     STATE_ON="on",
 )
-_install_module("homeassistant.core", HomeAssistant=MagicMock)
+_install_module("homeassistant.core", HomeAssistant=MagicMock, callback=lambda f: f)
 _install_module("homeassistant.data_entry_flow", AbortFlow=AbortFlow)
 _install_module("homeassistant.exceptions", HomeAssistantError=HomeAssistantError)
 _install_module("homeassistant.components")
@@ -128,14 +232,34 @@ _install_module(
     ATTR_EFFECT="effect",
     ATTR_RGB_COLOR="rgb_color",
     ATTR_RGBW_COLOR="rgbw_color",
+    EFFECT_OFF="off",
     ColorMode=types.SimpleNamespace(RGB="rgb"),
     LightEntity=LightEntity,
     LightEntityFeature=types.SimpleNamespace(EFFECT=4),
+)
+_install_module(
+    "homeassistant.components.number",
+    NumberEntity=NumberEntity,
+    NumberMode=types.SimpleNamespace(SLIDER="slider"),
 )
 _install_module("homeassistant.helpers")
 _install_module(
     "homeassistant.helpers.config_validation",
     empty_config_schema=lambda domain: ("empty_config_schema", domain),
+    multi_select=lambda options: ("multi_select", options),
+)
+_install_module(
+    "homeassistant.helpers.device_registry",
+    CONNECTION_NETWORK_MAC="mac",
+    # DeviceInfo is a TypedDict in Home Assistant.
+    DeviceInfo=dict,
+    format_mac=format_mac,
+)
+# Tests patch these per test; the defaults report an empty registry.
+_install_module(
+    "homeassistant.helpers.entity_registry",
+    async_get=MagicMock(),
+    async_entries_for_config_entry=MagicMock(return_value=[]),
 )
 _install_module("homeassistant.helpers.entity_platform", AddEntitiesCallback=MagicMock)
 _install_module("homeassistant.helpers.restore_state", RestoreEntity=RestoreEntity)

@@ -55,14 +55,30 @@ If your controller was not offered automatically (or you prefer to configure it 
    - **Host:** The IP address of your DMX controller on your local network (e.g., `192.168.1.50`).
    - **Port:** `8899` (This is the default port for these devices and rarely needs changing).
    - **Name:** A friendly name for your controller (default is "DiodeLED DMX").
-6. Click **Submit**. Home Assistant will immediately add the controller and expose a light entity (e.g., `light.diodeled_dmx`) that you can add to your dashboards.
+6. Click **Submit**. Home Assistant checks that the controller accepts a connection (if it cannot, you get a "Could not connect" error and can correct the details), then adds a **device** for the controller with a light entity (e.g., `light.diodeled_dmx`) and a rainbow speed slider.
+
+**Requires Home Assistant 2025.11 or newer.**
+
+### Changing the IP Address
+
+If the controller's IP address changes, open **Settings** > **Devices & Services**, select the DiodeLED DMX Controller, open the entry's menu (⋮) and choose **Reconfigure**. Enter the new host or port; the entities, history and automations are kept. (Discovered controllers also update their IP automatically when they broadcast from a new address.)
+
+### Zones
+
+The DI-DMX-WIFI-WMUS-3Z-WH has three zones. By default only zone 1 gets entities. To add zones 2 or 3, select the entry and choose **Configure**, then tick the zones that have lights connected. Each extra zone gets its own light (e.g., "Kitchen Zone 2") and rainbow speed slider; unticking a zone removes its entities.
+
+> **Note:** Only zone 1 has been verified on hardware. Zones 2 and 3 follow the documented packet layout (Byte 5 = zone number) but are untested.
 
 **Supported Entity Features:**
-- **Power:** On/Off control.
+- **Power:** On/Off control. Every turn-on (including a color, brightness or effect change) sends the power-on command first: the hardware ignores color and brightness commands while it is off, and a repeated power-on is harmless (both verified on hardware).
 - **Brightness:** 0-255 scaling (automatically mapped to the hardware's 8 native steps).
 - **Color:** Full RGB and RGBW color wheel support (White channel intensities are intelligently mixed into the RGB spectrum since the hardware's dedicated white channel is non-functional).
 - **Effects:** Built-in "Rainbow" animation effect selectable from the dashboard; effects can be cleared by selecting "Off" (which stops the effect by powering off, since no "rainbow off" command exists on the hardware).
+- **Rainbow Speed:** A slider (1 = slowest, 10 = fastest) sets the playback speed of the Rainbow effect. Like the light, it shows the last value sent and is restored after a restart.
+- **Device:** All entities are grouped under one device showing the manufacturer, model, the MAC address (for discovered controllers) and a **Visit** link to the controller's built-in web settings page.
 - **State:** The controller cannot report its state, so Home Assistant shows the last state it sent (an *assumed* state, with separate on/off buttons to resync the light). This state is restored after a Home Assistant restart. If a command cannot reach the controller, Home Assistant shows an error and keeps the previous state.
+
+**Integration Icon:** The integration ships its own icon (light and dark variants) in `custom_components/dmx_diodeled/brand/`. Home Assistant 2026.3 or newer displays it automatically; older versions show the generic placeholder.
 
 ## Local Testing & Development
 
