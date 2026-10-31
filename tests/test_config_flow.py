@@ -1,3 +1,4 @@
+import asyncio
 import types
 import unittest.mock
 from typing import Any
@@ -96,7 +97,15 @@ async def test_discovery_offers_new_controller(flow: DiodLEDConfigFlow) -> None:
 @pytest.mark.asyncio
 async def test_discovery_updates_host_of_known_mac(flow: DiodLEDConfigFlow) -> None:
     """A known MAC at a new address updates that entry's host and aborts."""
+    hass = unittest.mock.MagicMock()
+    hass.config_entries.async_reload = unittest.mock.AsyncMock()
+    flow.hass = hass
+
     entry = _entry({"host": "192.168.1.50"}, unique_id="aabbccddeeff")
+    entry.entry_id = "entry1"
+    # Stands in for the update listener registered by async_setup_entry, which
+    # is the single place this integration schedules a reload.
+    entry._update_listeners = [unittest.mock.AsyncMock()]
     flow.current_entries = [entry]
 
     with pytest.raises(AbortFlow) as err:
@@ -106,6 +115,14 @@ async def test_discovery_updates_host_of_known_mac(flow: DiodLEDConfigFlow) -> N
 
     assert err.value.reason == "already_configured"
     assert entry.data["host"] == "192.168.1.77"
+
+    # Let the fire-and-forget listener task run before counting reloads. The
+    # flow must not schedule an extra core reload on top of the one the
+    # listener performs (core's _abort_if_unique_id_configured defaults to
+    # reload_on_update=True, which would double-reload the entry).
+    for _ in range(3):
+        await asyncio.sleep(0)
+    hass.config_entries.async_reload.assert_not_awaited()
 
 
 @pytest.mark.asyncio

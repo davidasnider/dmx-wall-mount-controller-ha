@@ -59,12 +59,28 @@ class ConfigFlow:
         self.unique_id = unique_id
 
     def _abort_if_unique_id_configured(
-        self, updates: dict[str, Any] | None = None
+        self,
+        updates: dict[str, Any] | None = None,
+        reload_on_update: bool = True,
     ) -> None:
+        """Abort if this unique ID is already configured.
+
+        Faithful to Home Assistant core: updating the found entry fires its
+        update listeners, and (with core's default reload_on_update=True) core
+        schedules an extra reload of the updated entry on top.
+        """
         for entry in self.current_entries:
             if self.unique_id is not None and entry.unique_id == self.unique_id:
                 if updates:
-                    entry.data.update(updates)
+                    self._apply_entry_update(entry, data_updates=updates)
+                    if reload_on_update and self.hass is not None:
+                        pending = getattr(self, "_pending_listener_tasks", [])
+                        pending.append(
+                            asyncio.ensure_future(
+                                self.hass.config_entries.async_reload(entry.entry_id)
+                            )
+                        )
+                        self._pending_listener_tasks = pending
                 raise AbortFlow("already_configured")
 
     def _async_abort_entries_match(self, match_dict: dict[str, Any]) -> None:
@@ -90,6 +106,16 @@ class ConfigFlow:
     def _get_reconfigure_entry(self) -> Any:
         return self.context["entry"]
 
+    def _fire_entry_update_listeners(self, entry: Any) -> None:
+        """Fire every listener registered on the entry, like Home Assistant core."""
+        listeners = getattr(entry, "_update_listeners", None)
+        if self.hass is not None and listeners:
+            # Keep references so the tasks are not garbage-collected mid-flight.
+            pending = getattr(self, "_pending_listener_tasks", [])
+            for listener in list(listeners):
+                pending.append(asyncio.ensure_future(listener(self.hass, entry)))
+            self._pending_listener_tasks = pending
+
     def _apply_entry_update(
         self, entry: Any, *, data_updates: dict[str, Any] | None = None
     ) -> None:
@@ -100,13 +126,7 @@ class ConfigFlow:
         """
         if data_updates:
             entry.data.update(data_updates)
-        listeners = getattr(entry, "_update_listeners", None)
-        if self.hass is not None and listeners:
-            # Keep references so the tasks are not garbage-collected mid-flight.
-            pending = getattr(self, "_pending_listener_tasks", [])
-            for listener in list(listeners):
-                pending.append(asyncio.ensure_future(listener(self.hass, entry)))
-            self._pending_listener_tasks = pending
+        self._fire_entry_update_listeners(entry)
 
     def async_update_and_abort(
         self, entry: Any, *, data_updates: dict[str, Any] | None = None

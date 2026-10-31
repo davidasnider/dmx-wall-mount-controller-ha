@@ -4,6 +4,7 @@ import unittest.mock
 from typing import Any
 
 import pytest
+from homeassistant.data_entry_flow import AbortFlow
 
 import custom_components.dmx_diodeled as integration
 from custom_components.dmx_diodeled import config_flow
@@ -177,6 +178,56 @@ async def test_reconfigure_triggers_exactly_one_reload(hass: Any) -> None:
 
     assert result == {"type": "abort", "reason": "reconfigure_successful"}
     assert entry.data["host"] == "10.1.1.87"
+
+    # Core fires update listeners as fire-and-forget tasks; let them run
+    # before counting reloads.
+    for _ in range(3):
+        await asyncio.sleep(0)
+
+    hass.config_entries.async_reload.assert_awaited_once_with("entry1")
+
+
+@pytest.mark.asyncio
+async def test_discovery_host_change_reloads_entry_exactly_once(hass: Any) -> None:
+    """A discovery-driven host change must reload the entry exactly once.
+
+    Core updates the found entry's data, which fires the registered update
+    listener — and that listener's reload is the one. Core would additionally
+    schedule its own reload (reload_on_update defaults to True), overlapping a
+    second reload on the single-connection controller, so the flow passes
+    reload_on_update=False.
+    """
+    listeners: list[Any] = []
+
+    def add_update_listener(listener: Any) -> Any:
+        listeners.append(listener)
+        return unittest.mock.Mock()
+
+    entry = types.SimpleNamespace(
+        entry_id="entry1",
+        data={"host": "192.168.1.50"},
+        options={},
+        unique_id="aabbccddeeff",
+        _update_listeners=listeners,
+        add_update_listener=add_update_listener,
+        async_on_unload=unittest.mock.Mock(),
+    )
+    hass.config_entries.async_reload = unittest.mock.AsyncMock()
+
+    assert await integration.async_setup_entry(hass, entry) is True
+    assert len(listeners) == 1
+
+    flow = config_flow.DiodLEDConfigFlow()
+    flow.hass = hass
+    flow.current_entries = [entry]
+
+    with pytest.raises(AbortFlow) as err:
+        await flow.async_step_integration_discovery(
+            {"host": "192.168.1.77", "mac": "AABBCCDDEEFF"}
+        )
+
+    assert err.value.reason == "already_configured"
+    assert entry.data["host"] == "192.168.1.77"
 
     # Core fires update listeners as fire-and-forget tasks; let them run
     # before counting reloads.

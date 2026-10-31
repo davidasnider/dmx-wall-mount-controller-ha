@@ -135,7 +135,14 @@ class DiodLEDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # or whitespace still dedupe to the same unique_id.
             mac = mac.strip().lower()
             await self.async_set_unique_id(mac)
-            self._abort_if_unique_id_configured(updates={CONF_HOST: host})
+            # Core defaults to reload_on_update=True, which would schedule a
+            # second reload on top of the entry's update listener (registered in
+            # async_setup_entry) — the single place a reload is scheduled. Keep
+            # core's reload off so a discovery-driven host change reloads the
+            # entry exactly once.
+            self._abort_if_unique_id_configured(
+                updates={CONF_HOST: host}, reload_on_update=False
+            )
 
         # A manually added entry for this host has no unique_id, so the MAC
         # check above cannot match it; do not offer the controller again.
