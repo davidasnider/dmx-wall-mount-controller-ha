@@ -57,7 +57,7 @@ If your controller was not offered automatically (or you prefer to configure it 
    - **Name:** A friendly name for your controller (default is "DiodeLED DMX").
 6. Click **Submit**. Home Assistant checks that the controller accepts a connection (if it cannot, you get a "Could not connect" error and can correct the details), then adds a **device** for the controller with a light entity (e.g., `light.diodeled_dmx`) and a rainbow speed slider.
 
-**Requires Home Assistant 2024.12 or newer.**
+**Requires Home Assistant 2025.11 or newer.**
 
 ### Changing the IP Address
 
