@@ -71,7 +71,7 @@ class DMXDiscoveryProtocol(asyncio.DatagramProtocol):
         try:
             payload = data.decode("utf-8", errors="ignore").strip()
             # SECURITY: Sanitize the raw network payload before logging to prevent Log Injection
-            sanitized_payload = payload.replace("\n", "\\n").replace("\r", "\\r")
+            sanitized_payload = ascii(payload)[1:-1]
             _LOGGER.debug("Received UDP payload: %s from %s", sanitized_payload, addr)
             parts = payload.split(",")
             if len(parts) >= 3 and "HF-LPB100" in parts[2]:
@@ -116,16 +116,14 @@ class DMXDiscoveryProtocol(asyncio.DatagramProtocol):
 
                 if ip_address != parts[0]:
                     # SECURITY: Sanitize claimed IP to prevent Log Injection
-                    sanitized_claimed_ip = (
-                        parts[0].replace("\n", "\\n").replace("\r", "\\r")
-                    )
+                    sanitized_claimed_ip = ascii(parts[0])[1:-1]
                     _LOGGER.warning(
                         "Discovered device claimed IP %s but packet arrived from %s; using sender address",
                         sanitized_claimed_ip,
                         ip_address,
                     )
                 # SECURITY: Sanitize MAC address to prevent Log Injection
-                sanitized_mac = mac_address.replace("\n", "\\n").replace("\r", "\\r")
+                sanitized_mac = ascii(mac_address)[1:-1]
                 _LOGGER.info(
                     "Discovered DMX Controller at %s (MAC: %s)",
                     ip_address,

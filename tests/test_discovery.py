@@ -101,10 +101,11 @@ async def test_log_injection_is_sanitized(caplog):
     protocol = DMXDiscoveryProtocol(hass, callback)
     protocol.connection_made(MagicMock())
 
-    # Crafted payload: a raw \n embedded in the claimed-IP field (parts[0])
-    # and a raw CR in the MAC field (parts[1]). The packet's sender address
-    # differs from the claimed IP, so every sanitization branch is exercised.
-    payload = b"10.0.0.9\n9,AA:BB\rCCDD:HFFF,HF-LPB100"
+    # Crafted payload: a raw \n embedded in the claimed-IP field (parts[0]),
+    # a raw CR in the MAC field (parts[1]), and an ANSI escape code.
+    # The packet's sender address differs from the claimed IP, so every
+    # sanitization branch is exercised.
+    payload = b"\x1b[2J10.0.0.9\n9,AA:BB\rCCDD:HFFF,HF-LPB100"
     addr = ("192.168.1.50", 43210)
 
     with caplog.at_level(
@@ -116,15 +117,16 @@ async def test_log_injection_is_sanitized(caplog):
     # reject) would make the security assertions below vacuous.
     assert caplog.records
 
-    # No emitted log record may contain a raw newline or carriage return.
+    # No emitted log record may contain a raw newline, carriage return, or ANSI escape.
     for record in caplog.records:
         message = record.getMessage()
-        assert "\n" not in message and "\r" not in message
+        assert "\n" not in message and "\r" not in message and "\x1b" not in message
 
     # The escaped forms, never raw control characters, reach the log stream.
     logged = " ".join(record.getMessage() for record in caplog.records)
     assert "10.0.0.9\\n9" in logged  # claimed IP escaped
     assert "AA:BB\\rCCDD:HFFF" in logged  # MAC escaped
+    assert "\\x1b[2J" in logged  # ANSI escape escaped
 
     # The callback still receives raw (unescaped) values: Home Assistant core
     # needs strict byte sequences for unique_id dedupe; sanitization is a
