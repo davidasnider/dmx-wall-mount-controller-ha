@@ -91,9 +91,19 @@ async def test_discovered_device_starts_config_flow(hass: Any) -> None:
     )
 
 
+def _config_entry(options: dict[str, Any] | None = None) -> Any:
+    return types.SimpleNamespace(
+        entry_id="entry1",
+        data={"host": "192.168.1.50"},
+        options=options or {},
+        add_update_listener=unittest.mock.Mock(return_value="remove_listener"),
+        async_on_unload=unittest.mock.Mock(),
+    )
+
+
 @pytest.mark.asyncio
 async def test_setup_and_unload_entry(hass: Any) -> None:
-    entry = types.SimpleNamespace(entry_id="entry1", data={"host": "192.168.1.50"})
+    entry = _config_entry()
 
     assert await integration.async_setup_entry(hass, entry) is True
 
@@ -106,3 +116,49 @@ async def test_setup_and_unload_entry(hass: Any) -> None:
 
     assert await integration.async_unload_entry(hass, entry) is True
     assert "entry1" not in hass.data[DOMAIN]
+
+
+def test_platforms_include_light_and_number() -> None:
+    assert integration.PLATFORMS == ["light", "number"]
+
+
+@pytest.mark.asyncio
+async def test_setup_entry_reloads_on_options_change(hass: Any) -> None:
+    entry = _config_entry()
+    hass.config_entries.async_reload = unittest.mock.AsyncMock()
+
+    await integration.async_setup_entry(hass, entry)
+
+    entry.async_on_unload.assert_called_once_with("remove_listener")
+    listener = entry.add_update_listener.call_args[0][0]
+    await listener(hass, entry)
+    hass.config_entries.async_reload.assert_awaited_once_with("entry1")
+
+
+@pytest.mark.asyncio
+async def test_setup_entry_removes_entities_of_disabled_zones(hass: Any) -> None:
+    """Zones switched off in the options must not linger as unavailable entities."""
+    entry = _config_entry({"zones": [1]})
+    registry = unittest.mock.MagicMock()
+    registered = [
+        types.SimpleNamespace(entity_id="light.kept", unique_id="diodeled_dmx_entry1"),
+        types.SimpleNamespace(
+            entity_id="number.kept", unique_id="diodeled_dmx_entry1_speed"
+        ),
+        types.SimpleNamespace(
+            entity_id="light.zone_2", unique_id="diodeled_dmx_entry1_zone_2"
+        ),
+        types.SimpleNamespace(
+            entity_id="number.zone_2", unique_id="diodeled_dmx_entry1_zone_2_speed"
+        ),
+    ]
+    with (
+        unittest.mock.patch.object(integration.er, "async_get", return_value=registry),
+        unittest.mock.patch.object(
+            integration.er, "async_entries_for_config_entry", return_value=registered
+        ),
+    ):
+        await integration.async_setup_entry(hass, entry)
+
+    removed = [call.args[0] for call in registry.async_remove.call_args_list]
+    assert removed == ["light.zone_2", "number.zone_2"]

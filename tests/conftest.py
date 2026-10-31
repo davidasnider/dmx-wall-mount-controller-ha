@@ -77,12 +77,53 @@ class ConfigFlow:
     def async_show_form(self, *, step_id: str, **kwargs: Any) -> dict:
         return {"type": "form", "step_id": step_id, **kwargs}
 
+    def add_suggested_values_to_schema(
+        self, data_schema: Any, suggested_values: dict[str, Any]
+    ) -> dict:
+        # Returned as a dict so tests can check which values are suggested.
+        return {"schema": data_schema, "suggested_values": suggested_values}
+
+    def _get_reconfigure_entry(self) -> Any:
+        return self.context["entry"]
+
+    def async_update_reload_and_abort(
+        self, entry: Any, *, data_updates: dict[str, Any]
+    ) -> dict:
+        entry.data.update(data_updates)
+        return {"type": "abort", "reason": "reconfigure_successful"}
+
+
+class OptionsFlow:
+    """Minimal stand-in for homeassistant.config_entries.OptionsFlow."""
+
+    # Home Assistant sets this on the flow before the first step runs.
+    config_entry: Any = None
+
+    def async_create_entry(self, *, data: dict[str, Any]) -> dict:
+        return {"type": "create_entry", "data": data}
+
+    def async_show_form(self, *, step_id: str, **kwargs: Any) -> dict:
+        return {"type": "form", "step_id": step_id, **kwargs}
+
 
 class LightEntity:
     """Minimal stand-in for homeassistant.components.light.LightEntity."""
 
     def async_write_ha_state(self) -> None:
         pass
+
+
+class NumberEntity:
+    """Minimal stand-in for homeassistant.components.number.NumberEntity."""
+
+    def async_write_ha_state(self) -> None:
+        pass
+
+
+def format_mac(mac: str) -> str:
+    """Stand-in for homeassistant.helpers.device_registry.format_mac."""
+    mac = mac.lower().replace(":", "").replace("-", "")
+    return ":".join(mac[i : i + 2] for i in range(0, 12, 2))
 
 
 class RestoreEntity:
@@ -105,6 +146,7 @@ _install_module(
     ConfigEntry=MagicMock,
     ConfigFlow=ConfigFlow,
     ConfigFlowResult=dict,
+    OptionsFlow=OptionsFlow,
     CONN_CLASS_LOCAL_PUSH="local_push",
     SOURCE_INTEGRATION_DISCOVERY="integration_discovery",
 )
@@ -115,10 +157,10 @@ _install_module(
     CONF_NAME="name",
     CONF_PORT="port",
     EVENT_HOMEASSISTANT_STOP="homeassistant_stop",
-    Platform=types.SimpleNamespace(LIGHT="light"),
+    Platform=types.SimpleNamespace(LIGHT="light", NUMBER="number"),
     STATE_ON="on",
 )
-_install_module("homeassistant.core", HomeAssistant=MagicMock)
+_install_module("homeassistant.core", HomeAssistant=MagicMock, callback=lambda f: f)
 _install_module("homeassistant.data_entry_flow", AbortFlow=AbortFlow)
 _install_module("homeassistant.exceptions", HomeAssistantError=HomeAssistantError)
 _install_module("homeassistant.components")
@@ -128,14 +170,34 @@ _install_module(
     ATTR_EFFECT="effect",
     ATTR_RGB_COLOR="rgb_color",
     ATTR_RGBW_COLOR="rgbw_color",
+    EFFECT_OFF="off",
     ColorMode=types.SimpleNamespace(RGB="rgb"),
     LightEntity=LightEntity,
     LightEntityFeature=types.SimpleNamespace(EFFECT=4),
+)
+_install_module(
+    "homeassistant.components.number",
+    NumberEntity=NumberEntity,
+    NumberMode=types.SimpleNamespace(SLIDER="slider"),
 )
 _install_module("homeassistant.helpers")
 _install_module(
     "homeassistant.helpers.config_validation",
     empty_config_schema=lambda domain: ("empty_config_schema", domain),
+    multi_select=lambda options: ("multi_select", options),
+)
+_install_module(
+    "homeassistant.helpers.device_registry",
+    CONNECTION_NETWORK_MAC="mac",
+    # DeviceInfo is a TypedDict in Home Assistant.
+    DeviceInfo=dict,
+    format_mac=format_mac,
+)
+# Tests patch these per test; the defaults report an empty registry.
+_install_module(
+    "homeassistant.helpers.entity_registry",
+    async_get=MagicMock(),
+    async_entries_for_config_entry=MagicMock(return_value=[]),
 )
 _install_module("homeassistant.helpers.entity_platform", AddEntitiesCallback=MagicMock)
 _install_module("homeassistant.helpers.restore_state", RestoreEntity=RestoreEntity)
