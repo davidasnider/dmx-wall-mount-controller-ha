@@ -31,9 +31,6 @@ _PACKET_PREFIX = bytes([HEADER, *IDENTIFIER, *CONSTANTS])
 _PACKET_SUFFIX = bytes(FOOTER)
 _PACKET_HEADER_IDENTIFIER = bytes([HEADER, *IDENTIFIER])
 _PACKET_CONSTANTS_TAIL = bytes(CONSTANTS[1:])
-_PACKET_PREFIXES = tuple(
-    _PACKET_HEADER_IDENTIFIER + bytes((z,)) + _PACKET_CONSTANTS_TAIL for z in range(256)
-)
 
 
 class DiodLEDController:
@@ -66,11 +63,18 @@ class DiodLEDController:
         # SECURITY: Reject out-of-range zones instead of clamping them, because silently mapping
         # an invalid value to 0x00 would turn the packet into a broadcast affecting all zones.
         # (A raw ValueError from bytes() here would also escape async_send_commands error handling.)
-        # Performance optimization: Using array lookup pre-calculated prefixes avoids the
-        # overhead of if/elif branching and dynamic string concatenation.
-        if type(zone) is not int or not 0 <= zone <= 0xFF:
+        if not 0 <= zone <= 0xFF:
             raise ValueError(f"zone must be a byte (0-255), got {zone!r}")
-        prefix = _PACKET_PREFIXES[zone]
+
+        # Performance optimization: pre-calculated prefix for default Zone 1 (0x01),
+        # dynamically constructed prefix for broadcast (0x00, 0x04) or other zones (0x02, 0x03).
+        # Deriving the rest of the prefix from CONSTANTS[1:] keeps it in sync if IDENTIFIER or
+        # CONSTANTS ever change shape.
+        prefix = (
+            _PACKET_PREFIX
+            if zone == 0x01
+            else _PACKET_HEADER_IDENTIFIER + bytes((zone,)) + _PACKET_CONSTANTS_TAIL
+        )
 
         return (
             prefix + bytes((cmd_type[0], cmd_type[1], val, checksum)) + _PACKET_SUFFIX
