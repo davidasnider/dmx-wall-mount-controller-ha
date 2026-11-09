@@ -49,6 +49,9 @@ class DiodLEDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the initial step."""
         errors = {}
         if user_input is not None:
+            user_input[CONF_HOST] = user_input[CONF_HOST].strip()
+            if CONF_NAME in user_input and isinstance(user_input[CONF_NAME], str):
+                user_input[CONF_NAME] = user_input[CONF_NAME].strip()
             # Manual entries have no MAC address (and so no unique_id), so
             # dedupe them by host instead.
             self._async_abort_entries_match({CONF_HOST: user_input[CONF_HOST]})
@@ -88,6 +91,7 @@ class DiodLEDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         entry = self._get_reconfigure_entry()
         errors = {}
         if user_input is not None:
+            user_input[CONF_HOST] = user_input[CONF_HOST].strip()
             host = user_input[CONF_HOST]
             port = user_input.get(CONF_PORT, DEFAULT_PORT)
             # Do not let two entries point at the same controller. The entry's

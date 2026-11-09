@@ -56,6 +56,22 @@ async def test_user_step_creates_entry(
 
 
 @pytest.mark.asyncio
+async def test_user_step_trims_whitespace(
+    flow: DiodLEDConfigFlow, can_connect: Any
+) -> None:
+    """Whitespace around host and name should be stripped."""
+    user_input = {"host": "  192.168.1.50  ", "port": 8899, "name": "  Kitchen  "}
+
+    result = await flow.async_step_user(user_input)
+
+    assert result["type"] == "create_entry"
+    assert result["title"] == "Kitchen"
+    assert result["data"]["host"] == "192.168.1.50"
+    assert result["data"]["name"] == "Kitchen"
+    can_connect.assert_awaited_once_with("192.168.1.50", 8899)
+
+
+@pytest.mark.asyncio
 async def test_user_step_unreachable_host_shows_error(
     flow: DiodLEDConfigFlow, can_connect: Any
 ) -> None:
@@ -207,6 +223,20 @@ async def test_reconfigure_updates_host(can_connect: Any) -> None:
 
     assert result == {"type": "abort", "reason": "reconfigure_successful"}
     assert entry.data == {"host": "10.1.1.87", "port": 8899, "name": "Kitchen"}
+
+
+@pytest.mark.asyncio
+async def test_reconfigure_trims_whitespace(can_connect: Any) -> None:
+    """Whitespace around host should be stripped on reconfigure."""
+    entry = _entry({"host": "192.168.1.50", "port": 8899, "name": "Kitchen"})
+
+    result = await _reconfigure_flow(entry).async_step_reconfigure(
+        {"host": "  10.1.1.87  ", "port": 8899}
+    )
+
+    assert result == {"type": "abort", "reason": "reconfigure_successful"}
+    assert entry.data == {"host": "10.1.1.87", "port": 8899, "name": "Kitchen"}
+    can_connect.assert_awaited_once_with("10.1.1.87", 8899)
 
 
 @pytest.mark.asyncio
