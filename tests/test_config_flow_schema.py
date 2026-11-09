@@ -26,15 +26,23 @@ _FLOW_MODULE = "custom_components.dmx_diodeled.config_flow"
 def real_schema_module() -> Any:
     """Yield ``(real_voluptuous, config_flow re-imported with it)``."""
     saved_mock = sys.modules.pop("voluptuous")
-    saved_flow = sys.modules.pop(_FLOW_MODULE)
+    # The flow module is only in sys.modules if an earlier test file imported
+    # it; pop() must not raise when this file runs on its own.
+    saved_flow = sys.modules.pop(_FLOW_MODULE, None)
     try:
         real_voluptuous = importlib.import_module("voluptuous")
         flow_module = importlib.import_module(_FLOW_MODULE)
         yield real_voluptuous, flow_module
     finally:
-        # Restore the conftest mock and the original module object.
+        # Restore the conftest mock and the original module object. The
+        # import also re-bound config_flow on the parent package, so reset
+        # that attribute too (or clear both when there was nothing to save).
         sys.modules["voluptuous"] = saved_mock
-        sys.modules[_FLOW_MODULE] = saved_flow
+        if saved_flow is not None:
+            sys.modules[_FLOW_MODULE] = saved_flow
+            sys.modules["custom_components.dmx_diodeled"].config_flow = saved_flow
+        else:
+            sys.modules.pop(_FLOW_MODULE, None)
 
 
 def _form_schema(result: dict[str, Any]) -> Any:
