@@ -17,6 +17,7 @@ import os
 import shutil
 import unittest.mock
 import logging
+from collections.abc import Callable
 
 # Mock Home Assistant modules so they don't break the import. setdefault keeps
 # the shared stubs from tests/conftest.py when a unit test imports this script.
@@ -49,14 +50,30 @@ def speak(text: str) -> None:
         logger.info("TTS [say] NOT AVAILABLE: %s", text)
 
 
-async def run_idle_test(ip: str, port: int, wait_seconds: float) -> bool:
-    """Open persistent connection, send initial command, wait idle, then send follow-up command."""
+async def run_idle_test(
+    ip: str,
+    port: int,
+    wait_seconds: float,
+    narrate: Callable[[str], None] | None = None,
+) -> bool:
+    """Open persistent connection, send initial command, wait idle, then send follow-up command.
+
+    ``narrate`` is an optional presentation-only callback: the CLI wrapper in
+    ``main()`` passes the macOS TTS ``speak`` function so a manual run stays
+    audible. The default is silent, so unit tests and any other caller never
+    trigger text-to-speech as a side effect of the logic under test.
+    """
+
+    def say(text: str) -> None:
+        if narrate is not None:
+            narrate(text)
+
     controller = DiodLEDController(ip, port)
     power_on_cmd = controller.get_power_command(True)
     packet = controller._build_packet(power_on_cmd[0], power_on_cmd[1])
 
     logger.info("Connecting to %s:%s for persistent TCP connection test...", ip, port)
-    speak("Opening persistent connection to D MX controller.")
+    say("Opening persistent connection to D MX controller.")
 
     reader = None
     writer = None
@@ -73,14 +90,14 @@ async def run_idle_test(ip: str, port: int, wait_seconds: float) -> bool:
         writer.write(packet)
         await asyncio.wait_for(writer.drain(), timeout=2.0)
         logger.info("Initial command sent successfully.")
-        speak("Initial command sent. Starting idle timeout wait.")
+        say("Initial command sent. Starting idle timeout wait.")
 
         # Step 2: Idle wait without sending any data
         logger.info("Waiting for %s seconds without sending commands...", wait_seconds)
         await asyncio.sleep(wait_seconds)
 
         # Step 3: Attempt to fire follow-up command over same socket
-        speak("Idle period ended. Attempting to send follow-up command.")
+        say("Idle period ended. Attempting to send follow-up command.")
         logger.info("Attempting follow-up command on persistent connection...")
         writer.write(packet)
         await asyncio.wait_for(writer.drain(), timeout=2.0)
@@ -97,7 +114,7 @@ async def run_idle_test(ip: str, port: int, wait_seconds: float) -> bool:
             raise ConnectionResetError("Socket reached EOF after idle timeout.")
 
         logger.info("SUCCESS: Follow-up command succeeded on persistent socket!")
-        speak("Success. Persistent socket connection stayed alive.")
+        say("Success. Persistent socket connection stayed alive.")
         return True
 
     except (
@@ -118,7 +135,7 @@ async def run_idle_test(ip: str, port: int, wait_seconds: float) -> bool:
                 port,
                 err,
             )
-        speak("Persistent connection failed or was dropped by module.")
+        say("Persistent connection failed or was dropped by module.")
         return False
     finally:
         if writer is not None:
@@ -155,7 +172,7 @@ async def main() -> None:
         logger.error("No controller IP specified. Use --ip <IP> or set DMX_IP env var.")
         sys.exit(1)
 
-    success = await run_idle_test(args.ip, args.port, args.wait)
+    success = await run_idle_test(args.ip, args.port, args.wait, narrate=speak)
     if not success:
         sys.exit(1)
 

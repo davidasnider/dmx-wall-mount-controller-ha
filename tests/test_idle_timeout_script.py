@@ -1,6 +1,8 @@
 import asyncio
 import os
 import unittest.mock
+from collections.abc import Iterator
+
 import pytest
 import importlib.util
 from typing import Any
@@ -15,6 +17,20 @@ root_test_idle_timeout = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(root_test_idle_timeout)
 
 run_idle_test = root_test_idle_timeout.run_idle_test
+
+
+@pytest.fixture(autouse=True)
+def speech_is_silenced() -> Iterator[unittest.mock.MagicMock]:
+    """The unit-test path must never trigger text-to-speech.
+
+    Regression guard: run_idle_test used to call speak() directly, which made
+    every pytest run announce its progress through the machine's speakers.
+    Patch speak for the whole file and fail any test that triggers it, even
+    indirectly.
+    """
+    with unittest.mock.patch.object(root_test_idle_timeout, "speak") as mocked:
+        yield mocked
+    mocked.assert_not_called()
 
 
 def _create_mock_writer() -> unittest.mock.AsyncMock:

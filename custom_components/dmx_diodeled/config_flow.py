@@ -15,9 +15,14 @@ from .const import (
 )
 from .dmx_controller import DiodLEDController
 
-# SECURITY: Add length limit to prevent potential DoS from oversized inputs
-_HOST_VALIDATOR = vol.All(str, vol.Length(min=1, max=253))
+# SECURITY: Add length limit to prevent potential DoS from oversized inputs.
+# vol.Strip runs before the length check, so a blank (whitespace-only) value
+# is rejected during schema validation instead of passing Length(min=1) and
+# being reduced to "" afterwards.
+_HOST_VALIDATOR = vol.All(str, vol.Strip, vol.Length(min=1, max=253))
 _PORT_VALIDATOR = vol.All(int, vol.Range(min=1, max=65535))
+# SECURITY: Add length limit to prevent potential DoS from oversized inputs
+_NAME_VALIDATOR = vol.All(str, vol.Strip, vol.Length(min=1, max=100))
 
 
 async def _async_can_connect(host: str, port: int) -> bool:
@@ -49,17 +54,26 @@ class DiodLEDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the initial step."""
         errors = {}
         if user_input is not None:
-            # Manual entries have no MAC address (and so no unique_id), so
-            # dedupe them by host instead.
-            self._async_abort_entries_match({CONF_HOST: user_input[CONF_HOST]})
-            # The controller is write-only and never answers, so accepting a
-            # TCP connection is the only check available.
-            if await _async_can_connect(
-                user_input[CONF_HOST], user_input.get(CONF_PORT, DEFAULT_PORT)
-            ):
-                return self.async_create_entry(
-                    title=user_input.get(CONF_NAME, DEFAULT_NAME), data=user_input
-                )
+            # The validators above strip surrounding whitespace (and reject
+            # blank values) during schema validation. Normalize again here so a
+            # whitespace-only host can never reach the connection check or be
+            # stored, even if this step is called without schema validation.
+            user_input[CONF_HOST] = user_input[CONF_HOST].strip()
+            if CONF_NAME in user_input and isinstance(user_input[CONF_NAME], str):
+                # A whitespace-only name would otherwise become an empty title.
+                user_input[CONF_NAME] = user_input[CONF_NAME].strip() or DEFAULT_NAME
+            if user_input[CONF_HOST]:
+                # Manual entries have no MAC address (and so no unique_id), so
+                # dedupe them by host instead.
+                self._async_abort_entries_match({CONF_HOST: user_input[CONF_HOST]})
+                # The controller is write-only and never answers, so accepting a
+                # TCP connection is the only check available.
+                if await _async_can_connect(
+                    user_input[CONF_HOST], user_input.get(CONF_PORT, DEFAULT_PORT)
+                ):
+                    return self.async_create_entry(
+                        title=user_input.get(CONF_NAME, DEFAULT_NAME), data=user_input
+                    )
             errors["base"] = "cannot_connect"
 
         return self.async_show_form(
@@ -70,9 +84,7 @@ class DiodLEDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         vol.Required(CONF_HOST): _HOST_VALIDATOR,
                         vol.Optional(CONF_PORT, default=DEFAULT_PORT): _PORT_VALIDATOR,
                         # SECURITY: Add length limit to prevent potential DoS from oversized inputs
-                        vol.Optional(CONF_NAME, default=DEFAULT_NAME): vol.All(
-                            str, vol.Length(min=1, max=100)
-                        ),
+                        vol.Optional(CONF_NAME, default=DEFAULT_NAME): _NAME_VALIDATOR,
                     }
                 ),
                 # Keep what the user typed when the form is shown again with an error.
@@ -88,21 +100,26 @@ class DiodLEDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         entry = self._get_reconfigure_entry()
         errors = {}
         if user_input is not None:
+            # The validator strips surrounding whitespace (and rejects blank
+            # values) during schema validation; normalize again here so a
+            # whitespace-only host can never reach the connection check.
+            user_input[CONF_HOST] = user_input[CONF_HOST].strip()
             host = user_input[CONF_HOST]
             port = user_input.get(CONF_PORT, DEFAULT_PORT)
-            # Do not let two entries point at the same controller. The entry's
-            # own host is excluded so saving it unchanged is allowed.
-            if host != entry.data[CONF_HOST]:
-                self._async_abort_entries_match({CONF_HOST: host})
-            if await _async_can_connect(host, port):
-                # Update the entry only; do not use async_update_reload_and_abort
-                # here. Updating the entry fires the update listener registered in
-                # async_setup_entry, and that schedules the one reload. A second,
-                # flow-scheduled reload would overlap it on the single-connection
-                # controller.
-                return self.async_update_and_abort(
-                    entry, data_updates={CONF_HOST: host, CONF_PORT: port}
-                )
+            if host:
+                # Do not let two entries point at the same controller. The entry's
+                # own host is excluded so saving it unchanged is allowed.
+                if host != entry.data[CONF_HOST]:
+                    self._async_abort_entries_match({CONF_HOST: host})
+                if await _async_can_connect(host, port):
+                    # Update the entry only; do not use async_update_reload_and_abort
+                    # here. Updating the entry fires the update listener registered in
+                    # async_setup_entry, and that schedules the one reload. A second,
+                    # flow-scheduled reload would overlap it on the single-connection
+                    # controller.
+                    return self.async_update_and_abort(
+                        entry, data_updates={CONF_HOST: host, CONF_PORT: port}
+                    )
             errors["base"] = "cannot_connect"
 
         return self.async_show_form(
