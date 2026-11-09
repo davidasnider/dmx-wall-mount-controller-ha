@@ -1,5 +1,6 @@
 import asyncio
 import time
+import logging
 from .const import (
     LOGGER,
     HEADER,
@@ -108,12 +109,13 @@ class DiodLEDController:
                 # than a for-loop with conditional length checks and appending to a list.
                 payload = b"".join([self._build_packet(*item) for item in chunk])
 
-                LOGGER.debug(
-                    "Sending batched command payload to %s:%s - %s",
-                    sanitized_ip,
-                    self.port,
-                    payload.hex(),
-                )
+                if LOGGER.isEnabledFor(logging.DEBUG):
+                    LOGGER.debug(
+                        "Sending batched command payload to %s:%s - %s",
+                        sanitized_ip,
+                        self.port,
+                        payload.hex(),
+                    )
 
                 writer = None
                 try:
