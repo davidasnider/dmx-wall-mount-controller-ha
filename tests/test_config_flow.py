@@ -72,6 +72,35 @@ async def test_user_step_trims_whitespace(
 
 
 @pytest.mark.asyncio
+async def test_user_step_rejects_whitespace_only_host(
+    flow: DiodLEDConfigFlow, can_connect: Any
+) -> None:
+    """A whitespace-only host must not be stored or dialed."""
+    result = await flow.async_step_user(
+        {"host": "   ", "port": 8899, "name": "Kitchen"}
+    )
+
+    assert result["type"] == "form"
+    assert result["errors"] == {"base": "cannot_connect"}
+    can_connect.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_user_step_whitespace_only_name_falls_back_to_default(
+    flow: DiodLEDConfigFlow, can_connect: Any
+) -> None:
+    """A whitespace-only name must not become an empty entry title."""
+    result = await flow.async_step_user(
+        {"host": "192.168.1.50", "port": 8899, "name": "   "}
+    )
+
+    assert result["type"] == "create_entry"
+    assert result["title"] == DEFAULT_NAME
+    assert result["data"]["name"] == DEFAULT_NAME
+    can_connect.assert_awaited_once_with("192.168.1.50", 8899)
+
+
+@pytest.mark.asyncio
 async def test_user_step_unreachable_host_shows_error(
     flow: DiodLEDConfigFlow, can_connect: Any
 ) -> None:
@@ -237,6 +266,20 @@ async def test_reconfigure_trims_whitespace(can_connect: Any) -> None:
     assert result == {"type": "abort", "reason": "reconfigure_successful"}
     assert entry.data == {"host": "10.1.1.87", "port": 8899, "name": "Kitchen"}
     can_connect.assert_awaited_once_with("10.1.1.87", 8899)
+
+
+@pytest.mark.asyncio
+async def test_reconfigure_rejects_whitespace_only_host(can_connect: Any) -> None:
+    """A whitespace-only host must not be stored or dialed on reconfigure."""
+    entry = _entry({"host": "192.168.1.50", "port": 8899})
+
+    result = await _reconfigure_flow(entry).async_step_reconfigure(
+        {"host": "   ", "port": 8899}
+    )
+
+    assert result["errors"] == {"base": "cannot_connect"}
+    assert entry.data == {"host": "192.168.1.50", "port": 8899}
+    can_connect.assert_not_awaited()
 
 
 @pytest.mark.asyncio
