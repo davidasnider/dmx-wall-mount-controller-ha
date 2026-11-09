@@ -71,8 +71,9 @@ class DMXDiscoveryProtocol(asyncio.DatagramProtocol):
         try:
             payload = data.decode("utf-8", errors="ignore").strip()
             # SECURITY: Sanitize the raw network payload before logging to prevent Log Injection
-            sanitized_payload = ascii(payload)[1:-1]
-            _LOGGER.debug("Received UDP payload: %s from %s", sanitized_payload, addr)
+            if _LOGGER.isEnabledFor(logging.DEBUG):
+                sanitized_payload = ascii(payload)[1:-1]
+                _LOGGER.debug("Received UDP payload: %s from %s", sanitized_payload, addr)
             parts = payload.split(",")
             if len(parts) >= 3 and "HF-LPB100" in parts[2]:
                 # Use the packet source address as the authoritative host: the
