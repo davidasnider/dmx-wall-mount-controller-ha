@@ -1,0 +1,14 @@
+version: 2
+updates:
+  # One grouped PR a week keeps every GitHub Action current.
+  # Python dependencies are upgraded by the PR loop's Quartermaster job, not here.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "ci"
