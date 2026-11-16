@@ -207,7 +207,7 @@ async def test_discovery_host_change_reloads_entry_exactly_once(hass: Any) -> No
         entry_id="entry1",
         data={"host": "192.168.1.50"},
         options={},
-        unique_id="aabbccddeeff",
+        unique_id="aa:bb:cc:dd:ee:ff",
         _update_listeners=listeners,
         add_update_listener=add_update_listener,
         async_on_unload=unittest.mock.Mock(),
@@ -264,3 +264,135 @@ async def test_setup_entry_removes_entities_of_disabled_zones(hass: Any) -> None
 
     removed = [call.args[0] for call in registry.async_remove.call_args_list]
     assert removed == ["light.zone_2", "number.zone_2"]
+
+
+# ---------------------------------------------------------------------------
+# Config entry migration (v1 unique IDs -> v2 canonical "aa:bb:..." form)
+
+
+def _v1_entry(unique_id: str | None, entry_id: str = "entry1") -> Any:
+    return types.SimpleNamespace(
+        entry_id=entry_id,
+        data={"host": "192.168.1.50"},
+        options={},
+        unique_id=unique_id,
+        version=1,
+    )
+
+
+def _core_like_update_entry(hass: Any) -> None:
+    """Make hass.config_entries.async_update_entry mutate the entry like core.
+
+    Core sets each changed attribute on the entry and returns True when
+    anything changed; the mock keeps recording calls so both can be asserted.
+    """
+
+    def update(entry: Any, **changes: Any) -> bool:
+        for attr, value in changes.items():
+            setattr(entry, attr, value)
+        return True
+
+    hass.config_entries.async_update_entry = unittest.mock.Mock(side_effect=update)
+
+
+@pytest.mark.asyncio
+async def test_migrate_entry_rewrites_bare_hex_unique_id(hass: Any) -> None:
+    """A v1 entry stored the stripped bare-hex MAC as its unique ID; migration
+    must rewrite it to the canonical form so a rebroadcast still dedupes to it."""
+    entry = _v1_entry("aabbccddeeff")
+    hass.config_entries.async_entries.return_value = [entry]
+    _core_like_update_entry(hass)
+
+    assert await integration.async_migrate_entry(hass, entry) is True
+
+    hass.config_entries.async_update_entry.assert_called_once_with(
+        entry, unique_id="aa:bb:cc:dd:ee:ff", version=2
+    )
+    assert entry.unique_id == "aa:bb:cc:dd:ee:ff"
+    assert entry.version == 2
+
+
+@pytest.mark.asyncio
+async def test_migrate_entry_rewrites_dashed_unique_id(hass: Any) -> None:
+    entry = _v1_entry("aa-bb-cc-dd-ee-ff")
+    hass.config_entries.async_entries.return_value = [entry]
+    _core_like_update_entry(hass)
+
+    assert await integration.async_migrate_entry(hass, entry) is True
+
+    hass.config_entries.async_update_entry.assert_called_once_with(
+        entry, unique_id="aa:bb:cc:dd:ee:ff", version=2
+    )
+    assert entry.unique_id == "aa:bb:cc:dd:ee:ff"
+
+
+@pytest.mark.asyncio
+async def test_migrate_entry_bumps_version_when_id_already_canonical(
+    hass: Any,
+) -> None:
+    """A v1 entry whose ID is already canonical (colon-form broadcast) still gets
+    the version bump so migration runs exactly once per entry."""
+    entry = _v1_entry("aa:bb:cc:dd:ee:ff")
+    hass.config_entries.async_entries.return_value = [entry]
+    _core_like_update_entry(hass)
+
+    assert await integration.async_migrate_entry(hass, entry) is True
+
+    hass.config_entries.async_update_entry.assert_called_once_with(entry, version=2)
+    assert entry.version == 2
+
+
+@pytest.mark.asyncio
+async def test_migrate_entry_keeps_non_mac_unique_id(hass: Any) -> None:
+    """v1 stored any non-empty discovery MAC string verbatim (no format check);
+    a v1 ID that is not 48-bit hex must be kept, only the version is bumped."""
+    entry = _v1_entry("not-a-mac")
+    hass.config_entries.async_entries.return_value = [entry]
+    _core_like_update_entry(hass)
+
+    assert await integration.async_migrate_entry(hass, entry) is True
+
+    hass.config_entries.async_update_entry.assert_called_once_with(entry, version=2)
+    assert entry.unique_id == "not-a-mac"
+
+
+@pytest.mark.asyncio
+async def test_migrate_entry_without_unique_id_bumps_version(hass: Any) -> None:
+    """Manual v1 entries have no unique ID; they still get the version bump."""
+    entry = _v1_entry(None)
+    hass.config_entries.async_entries.return_value = [entry]
+    _core_like_update_entry(hass)
+
+    assert await integration.async_migrate_entry(hass, entry) is True
+
+    hass.config_entries.async_update_entry.assert_called_once_with(entry, version=2)
+    assert entry.unique_id is None
+
+
+@pytest.mark.asyncio
+async def test_migrate_entry_skips_already_migrated_entries(hass: Any) -> None:
+    """Entries already at version 2 must be left completely untouched."""
+    entry = _v1_entry("aabbccddeeff")
+    entry.version = 2
+
+    assert await integration.async_migrate_entry(hass, entry) is True
+
+    hass.config_entries.async_update_entry.assert_not_called()
+    assert entry.unique_id == "aabbccddeeff"
+
+
+@pytest.mark.asyncio
+async def test_migrate_entry_collision_keeps_old_unique_id(hass: Any) -> None:
+    """If another v1 entry already holds the canonical ID (the same MAC stored in
+    two spellings before canonicalization), this entry keeps its old ID instead
+    of sharing it; the device still dedupes by host."""
+    entry = _v1_entry("aabbccddeeff", entry_id="entry-a")
+    other = _v1_entry("aa:bb:cc:dd:ee:ff", entry_id="entry-b")
+    hass.config_entries.async_entries.return_value = [entry, other]
+    _core_like_update_entry(hass)
+
+    assert await integration.async_migrate_entry(hass, entry) is True
+
+    hass.config_entries.async_update_entry.assert_called_once_with(entry, version=2)
+    assert entry.unique_id == "aabbccddeeff"
+    assert entry.version == 2

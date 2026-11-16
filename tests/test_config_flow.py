@@ -135,18 +135,19 @@ async def test_discovery_offers_new_controller(flow: DiodLEDConfigFlow) -> None:
     assert result["type"] == "form"
     assert result["step_id"] == "discovery_confirm"
     assert result["description_placeholders"] == {"host": "192.168.1.50"}
-    # The MAC is normalized before it is used as the unique ID.
-    assert flow.unique_id == "aabbccddeeff"
+    # The MAC is normalized to the canonical unique ID before it is used.
+    assert flow.unique_id == "aa:bb:cc:dd:ee:ff"
 
 
 @pytest.mark.asyncio
 async def test_discovery_updates_host_of_known_mac(flow: DiodLEDConfigFlow) -> None:
-    """A known MAC at a new address updates that entry's host and aborts."""
+    """A known MAC (broadcast bare-hex) at a new address updates that entry's
+    host and aborts; it matches the canonically stored unique ID."""
     hass = unittest.mock.MagicMock()
     hass.config_entries.async_reload = unittest.mock.AsyncMock()
     flow.hass = hass
 
-    entry = _entry({"host": "192.168.1.50"}, unique_id="aabbccddeeff")
+    entry = _entry({"host": "192.168.1.50"}, unique_id="aa:bb:cc:dd:ee:ff")
     entry.entry_id = "entry1"
     # Stands in for the update listener registered by async_setup_entry, which
     # is the single place this integration schedules a reload.
@@ -200,6 +201,110 @@ async def test_discovery_confirm_creates_entry(flow: DiodLEDConfigFlow) -> None:
         "port": DEFAULT_PORT,
         "name": DEFAULT_NAME,
     }
+
+
+@pytest.mark.asyncio
+async def test_discovery_malformed_mac_is_not_stored_as_unique_id(
+    flow: DiodLEDConfigFlow,
+) -> None:
+    """A UDP-discovered MAC that is not a 48-bit hex address must not become the
+    entry's unique ID. The discovery MAC is untrusted UDP input, and a unique ID
+    becomes the device's network-MAC connection in HA's registry — an attacker on
+    the LAN must not be able to choose that identity string (e.g. another
+    registered device's MAC, which would merge devices). The flow must fall back
+    to host-based identification. (format_mac() itself does not raise on such
+    values; this is identity hardening, not a crash fix.)
+    """
+    for bad_mac in ("not-a-mac", "AABBCCDDEEFF00", "zz:11:22:33:44:55"):
+        flow.unique_id = None
+        result = await flow.async_step_integration_discovery(
+            {"host": "192.0.2.50", "mac": bad_mac}
+        )
+
+        assert result["type"] == "form"
+        assert result["step_id"] == "discovery_confirm"
+        assert flow.unique_id is None
+
+
+@pytest.mark.asyncio
+async def test_discovery_mac_separators_still_accepted(
+    flow: DiodLEDConfigFlow,
+) -> None:
+    """A colon-separated MAC is still a valid unique ID (format_mac accepts it),
+    normalized exactly as before."""
+    result = await flow.async_step_integration_discovery(
+        {"host": "192.0.2.50", "mac": " AA:BB:CC:DD:EE:FF "}
+    )
+
+    assert result["step_id"] == "discovery_confirm"
+    assert flow.unique_id == "aa:bb:cc:dd:ee:ff"
+
+
+@pytest.mark.asyncio
+async def test_discovery_mac_spelling_variants_share_one_unique_id(
+    flow: DiodLEDConfigFlow,
+) -> None:
+    """ ":" and "-" spellings (and bare hex) of the same MAC normalize to one
+    canonical unique ID, so a device always dedupes regardless of how its
+    firmware spells the MAC."""
+    for mac in ("AA-BB-CC-DD-EE-FF", "aa:bb:cc:dd:ee:ff", "AABBCCDDEEFF"):
+        flow.unique_id = None
+        result = await flow.async_step_integration_discovery(
+            {"host": "192.0.2.50", "mac": mac}
+        )
+
+        assert result["step_id"] == "discovery_confirm"
+        assert flow.unique_id == "aa:bb:cc:dd:ee:ff"
+
+
+@pytest.mark.asyncio
+async def test_discovery_dash_mac_matches_colon_stored_entry(
+    flow: DiodLEDConfigFlow,
+) -> None:
+    """A "-"-separated broadcast must dedupe to an entry whose unique ID was
+    stored from the ":" spelling of the same MAC."""
+    flow.current_entries = [
+        _entry({"host": "192.0.2.50"}, unique_id="aa:bb:cc:dd:ee:ff")
+    ]
+
+    with pytest.raises(AbortFlow) as err:
+        await flow.async_step_integration_discovery(
+            {"host": "192.0.2.50", "mac": "AA-BB-CC-DD-EE-FF"}
+        )
+
+    assert err.value.reason == "already_configured"
+
+
+@pytest.mark.asyncio
+async def test_discovery_mixed_or_odd_mac_separators_rejected(
+    flow: DiodLEDConfigFlow,
+) -> None:
+    """Only a consistent separator layout is accepted; mixed or misplaced
+    separators fall back to host-based identification like any non-MAC."""
+    for bad_mac in ("a:abbccddeeff", "aa-bb-cc-dd-ee-f:f", ":aa:bb:cc:dd:ee:ff"):
+        flow.unique_id = None
+        result = await flow.async_step_integration_discovery(
+            {"host": "192.0.2.50", "mac": bad_mac}
+        )
+
+        assert result["step_id"] == "discovery_confirm"
+        assert flow.unique_id is None
+
+
+@pytest.mark.asyncio
+async def test_discovery_malformed_mac_still_dedupes_by_host(
+    flow: DiodLEDConfigFlow,
+) -> None:
+    """With no usable unique ID, a repeat broadcast for the same host aborts
+    just like one with a valid MAC."""
+    flow.current_entries = [_entry({"host": "192.0.2.50", "port": DEFAULT_PORT})]
+
+    with pytest.raises(AbortFlow) as err:
+        await flow.async_step_integration_discovery(
+            {"host": "192.0.2.50", "mac": "not-a-mac"}
+        )
+
+    assert err.value.reason == "already_configured"
 
 
 @pytest.mark.asyncio
