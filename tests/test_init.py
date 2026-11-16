@@ -207,7 +207,7 @@ async def test_discovery_host_change_reloads_entry_exactly_once(hass: Any) -> No
         entry_id="entry1",
         data={"host": "192.168.1.50"},
         options={},
-        unique_id="aabbccddeeff",
+        unique_id="aa:bb:cc:dd:ee:ff",
         _update_listeners=listeners,
         add_update_listener=add_update_listener,
         async_on_unload=unittest.mock.Mock(),

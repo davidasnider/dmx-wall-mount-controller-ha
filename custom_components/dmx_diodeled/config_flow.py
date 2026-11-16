@@ -29,19 +29,45 @@ _NAME_VALIDATOR = vol.All(str, vol.Strip, vol.Length(min=1, max=100))
 # unique ID and, via device_info(), the device registry's network-MAC connection —
 # i.e. part of what identifies this device in Home Assistant, and the key
 # discovery uses to re-find an existing entry. Only a real 48-bit MAC may become
-# that identity: twelve hex digits, ":" or "-" separated (the forms the discovery
-# firmware broadcasts; dotted and other spellings are rejected). Anything else is
-# treated like a manual entry (no MAC identity), so an attacker on the LAN cannot
-# choose the string that identifies a device in the registry. Note: HA core's
-# format_mac() does NOT raise on malformed input (it returns it unchanged), so
-# this is identity hardening, not a crash fix.
+# that identity: twelve hex digits, bare or with a consistent ":"/"-"
+# separator (the forms the discovery firmware broadcasts; dotted, mixed and
+# other spellings are rejected). Accepted spellings normalize to one canonical
+# form, so a device always dedupes to the same unique ID. Anything else is
+# treated like a manual entry (no MAC identity), so an attacker on the LAN
+# cannot choose the string that identifies a device in the registry. Note:
+# HA core's format_mac() does NOT raise on malformed input (it returns it
+# unchanged), so this is identity hardening, not a crash fix.
 _MAC_HEX_DIGITS = frozenset("0123456789abcdef")
 
 
 def _mac_is_well_formed(mac: str) -> bool:
-    """Return True if mac is a 48-bit MAC (hex digits, optional ":"/"-")."""
+    """Return True if mac is a 48-bit MAC in an accepted spelling.
+
+    Accepted: twelve bare hex digits, or six two-digit hex groups joined by a
+    single consistent separator (":" or "-"). Mixed or misplaced separators are
+    rejected so each MAC has exactly one accepted spelling.
+    """
+    if ":" in mac:
+        groups = mac.split(":")
+    elif "-" in mac:
+        groups = mac.split("-")
+    else:
+        return len(mac) == 12 and set(mac).issubset(_MAC_HEX_DIGITS)
+
+    return len(groups) == 6 and all(
+        len(group) == 2 and set(group).issubset(_MAC_HEX_DIGITS) for group in groups
+    )
+
+
+def _mac_canonical_id(mac: str) -> str:
+    """Return the canonical "aa:bb:cc:dd:ee:ff" unique ID for a well-formed mac.
+
+    Every accepted spelling (bare hex, ":" or "-" separated) maps to the same
+    form, so a device that broadcasts different spellings of its MAC still
+    dedupes to one unique ID. Callers must pass a lowercased mac (see the flow).
+    """
     digits = mac.replace(":", "").replace("-", "")
-    return len(digits) == 12 and set(digits).issubset(_MAC_HEX_DIGITS)
+    return ":".join(digits[i : i + 2] for i in range(0, 12, 2))
 
 
 async def _async_can_connect(host: str, port: int) -> bool:
@@ -168,7 +194,8 @@ class DiodLEDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if mac:
             # Normalize (strip/lowercase) so broadcasts with different casing
-            # or whitespace still dedupe to the same unique_id.
+            # or whitespace still dedupe to the same unique_id; separator layout
+            # is canonicalized by _mac_canonical_id.
             mac = mac.strip().lower()
             # SECURITY: Only well-formed MACs may become unique IDs (see
             # _mac_is_well_formed). An attacker on the LAN can put any string in
@@ -176,7 +203,10 @@ class DiodLEDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # connection in the registry; anything non-MAC-shaped falls back to
             # host-based identification instead of becoming device identity.
             if _mac_is_well_formed(mac):
-                await self.async_set_unique_id(mac)
+                # Canonicalize so ":" and "-" spellings of the same MAC map to
+                # one unique ID instead of splitting the device into duplicate
+                # identities.
+                await self.async_set_unique_id(_mac_canonical_id(mac))
                 # Core defaults to reload_on_update=True, which would schedule a
                 # second reload on top of the entry's update listener (registered in
                 # async_setup_entry) — the single place a reload is scheduled. Keep
