@@ -25,11 +25,16 @@ _PORT_VALIDATOR = vol.All(int, vol.Range(min=1, max=65535))
 # SECURITY: Add length limit to prevent potential DoS from oversized inputs
 _NAME_VALIDATOR = vol.All(str, vol.Strip, vol.Length(min=1, max=100))
 
-# SECURITY: A discovery MAC is untrusted UDP input. It may only become an entry
-# unique ID if HA core's format_mac() (used by device_info) would accept it:
-# exactly twelve hex digits, with only ":" or "-" separators. Anything else is
-# treated like a manual entry (no MAC identity) instead of being stored, because
-# a malformed unique ID would permanently break entity setup for the entry.
+# SECURITY: A discovery MAC is untrusted UDP input. It becomes the entry's
+# unique ID and, via device_info(), the device registry's network-MAC connection —
+# i.e. part of what identifies this device in Home Assistant, and the key
+# discovery uses to re-find an existing entry. Only a real 48-bit MAC may become
+# that identity: twelve hex digits, ":" or "-" separated (the forms the discovery
+# firmware broadcasts; dotted and other spellings are rejected). Anything else is
+# treated like a manual entry (no MAC identity), so an attacker on the LAN cannot
+# choose the string that identifies a device in the registry. Note: HA core's
+# format_mac() does NOT raise on malformed input (it returns it unchanged), so
+# this is identity hardening, not a crash fix.
 _MAC_HEX_DIGITS = frozenset("0123456789abcdef")
 
 
@@ -167,8 +172,9 @@ class DiodLEDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             mac = mac.strip().lower()
             # SECURITY: Only well-formed MACs may become unique IDs (see
             # _mac_is_well_formed). An attacker on the LAN can put any string in
-            # this field; a malformed one stored as unique_id would crash entity
-            # setup via HA core's format_mac() and stay broken permanently.
+            # this field, and a unique ID becomes the device's network-MAC
+            # connection in the registry; anything non-MAC-shaped falls back to
+            # host-based identification instead of becoming device identity.
             if _mac_is_well_formed(mac):
                 await self.async_set_unique_id(mac)
                 # Core defaults to reload_on_update=True, which would schedule a

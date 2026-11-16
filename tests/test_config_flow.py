@@ -207,9 +207,12 @@ async def test_discovery_malformed_mac_is_not_stored_as_unique_id(
     flow: DiodLEDConfigFlow,
 ) -> None:
     """A UDP-discovered MAC that is not a 48-bit hex address must not become the
-    entry's unique ID: HA core's format_mac() (called by device_info) raises
-    ValueError on such values, which would permanently break entity setup for
-    the entry. The flow must fall back to host-based identification.
+    entry's unique ID. The discovery MAC is untrusted UDP input, and a unique ID
+    becomes the device's network-MAC connection in HA's registry — an attacker on
+    the LAN must not be able to choose that identity string (e.g. another
+    registered device's MAC, which would merge devices). The flow must fall back
+    to host-based identification. (format_mac() itself does not raise on such
+    values; this is identity hardening, not a crash fix.)
     """
     for bad_mac in ("not-a-mac", "AABBCCDDEEFF00", "zz:11:22:33:44:55"):
         flow.unique_id = None
