@@ -203,6 +203,56 @@ async def test_discovery_confirm_creates_entry(flow: DiodLEDConfigFlow) -> None:
 
 
 @pytest.mark.asyncio
+async def test_discovery_malformed_mac_is_not_stored_as_unique_id(
+    flow: DiodLEDConfigFlow,
+) -> None:
+    """A UDP-discovered MAC that is not a 48-bit hex address must not become the
+    entry's unique ID: HA core's format_mac() (called by device_info) raises
+    ValueError on such values, which would permanently break entity setup for
+    the entry. The flow must fall back to host-based identification.
+    """
+    for bad_mac in ("not-a-mac", "AABBCCDDEEFF00", "zz:11:22:33:44:55"):
+        flow.unique_id = None
+        result = await flow.async_step_integration_discovery(
+            {"host": "192.0.2.50", "mac": bad_mac}
+        )
+
+        assert result["type"] == "form"
+        assert result["step_id"] == "discovery_confirm"
+        assert flow.unique_id is None
+
+
+@pytest.mark.asyncio
+async def test_discovery_mac_separators_still_accepted(
+    flow: DiodLEDConfigFlow,
+) -> None:
+    """A colon-separated MAC is still a valid unique ID (format_mac accepts it),
+    normalized exactly as before."""
+    result = await flow.async_step_integration_discovery(
+        {"host": "192.0.2.50", "mac": " AA:BB:CC:DD:EE:FF "}
+    )
+
+    assert result["step_id"] == "discovery_confirm"
+    assert flow.unique_id == "aa:bb:cc:dd:ee:ff"
+
+
+@pytest.mark.asyncio
+async def test_discovery_malformed_mac_still_dedupes_by_host(
+    flow: DiodLEDConfigFlow,
+) -> None:
+    """With no usable unique ID, a repeat broadcast for the same host aborts
+    just like one with a valid MAC."""
+    flow.current_entries = [_entry({"host": "192.0.2.50", "port": DEFAULT_PORT})]
+
+    with pytest.raises(AbortFlow) as err:
+        await flow.async_step_integration_discovery(
+            {"host": "192.0.2.50", "mac": "not-a-mac"}
+        )
+
+    assert err.value.reason == "already_configured"
+
+
+@pytest.mark.asyncio
 async def test_can_connect_reports_unreachable_controller() -> None:
     with unittest.mock.patch.object(
         config_flow.DiodLEDController,

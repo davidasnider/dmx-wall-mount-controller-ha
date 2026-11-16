@@ -1,9 +1,10 @@
+from typing import Any
+
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.const import CONF_HOST, CONF_PORT, CONF_NAME, CONF_MAC
+from homeassistant.const import CONF_HOST, CONF_MAC, CONF_NAME, CONF_PORT
 from homeassistant.core import callback
 from homeassistant.helpers import config_validation as cv
-from typing import Any
 
 from .const import (
     CONF_ZONES,
@@ -23,6 +24,19 @@ _HOST_VALIDATOR = vol.All(str, vol.Strip, vol.Length(min=1, max=253))
 _PORT_VALIDATOR = vol.All(int, vol.Range(min=1, max=65535))
 # SECURITY: Add length limit to prevent potential DoS from oversized inputs
 _NAME_VALIDATOR = vol.All(str, vol.Strip, vol.Length(min=1, max=100))
+
+# SECURITY: A discovery MAC is untrusted UDP input. It may only become an entry
+# unique ID if HA core's format_mac() (used by device_info) would accept it:
+# exactly twelve hex digits, with only ":" or "-" separators. Anything else is
+# treated like a manual entry (no MAC identity) instead of being stored, because
+# a malformed unique ID would permanently break entity setup for the entry.
+_MAC_HEX_DIGITS = frozenset("0123456789abcdef")
+
+
+def _mac_is_well_formed(mac: str) -> bool:
+    """Return True if mac is a 48-bit MAC (hex digits, optional ":"/"-")."""
+    digits = mac.replace(":", "").replace("-", "")
+    return len(digits) == 12 and set(digits).issubset(_MAC_HEX_DIGITS)
 
 
 async def _async_can_connect(host: str, port: int) -> bool:
@@ -151,15 +165,20 @@ class DiodLEDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # Normalize (strip/lowercase) so broadcasts with different casing
             # or whitespace still dedupe to the same unique_id.
             mac = mac.strip().lower()
-            await self.async_set_unique_id(mac)
-            # Core defaults to reload_on_update=True, which would schedule a
-            # second reload on top of the entry's update listener (registered in
-            # async_setup_entry) — the single place a reload is scheduled. Keep
-            # core's reload off so a discovery-driven host change reloads the
-            # entry exactly once.
-            self._abort_if_unique_id_configured(
-                updates={CONF_HOST: host}, reload_on_update=False
-            )
+            # SECURITY: Only well-formed MACs may become unique IDs (see
+            # _mac_is_well_formed). An attacker on the LAN can put any string in
+            # this field; a malformed one stored as unique_id would crash entity
+            # setup via HA core's format_mac() and stay broken permanently.
+            if _mac_is_well_formed(mac):
+                await self.async_set_unique_id(mac)
+                # Core defaults to reload_on_update=True, which would schedule a
+                # second reload on top of the entry's update listener (registered in
+                # async_setup_entry) — the single place a reload is scheduled. Keep
+                # core's reload off so a discovery-driven host change reloads the
+                # entry exactly once.
+                self._abort_if_unique_id_configured(
+                    updates={CONF_HOST: host}, reload_on_update=False
+                )
 
         # A manually added entry for this host has no unique_id, so the MAC
         # check above cannot match it; do not offer the controller again.
