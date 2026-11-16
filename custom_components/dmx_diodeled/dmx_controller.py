@@ -1,32 +1,32 @@
 import asyncio
-import time
 import logging
+import time
+
 from .const import (
-    LOGGER,
-    HEADER,
-    IDENTIFIER,
+    BRIGHTNESS_MAX,
+    BRIGHTNESS_MIN,
+    CMD_CHUNK_SIZE,
+    CMD_TYPE_BLUE,
+    CMD_TYPE_BRIGHTNESS,
+    CMD_TYPE_GREEN,
+    CMD_TYPE_POWER,
+    CMD_TYPE_RAINBOW,
+    CMD_TYPE_RED,
+    CMD_TYPE_SPEED,
+    CMD_TYPE_WHITE,
+    CONNECT_TIMEOUT,
     CONSTANTS,
     FOOTER,
-    CMD_TYPE_POWER,
-    CMD_TYPE_BRIGHTNESS,
-    CMD_TYPE_RED,
-    CMD_TYPE_GREEN,
-    CMD_TYPE_BLUE,
-    CMD_TYPE_WHITE,
-    CMD_TYPE_RAINBOW,
-    CMD_TYPE_SPEED,
-    VAL_POWER_ON,
-    VAL_POWER_OFF,
-    VAL_RAINBOW_ON,
-    THROTTLE_DELAY,
-    BRIGHTNESS_MIN,
-    BRIGHTNESS_MAX,
-    SPEED_MIN,
+    HEADER,
+    IDENTIFIER,
+    LOGGER,
     SPEED_MAX,
-    CMD_CHUNK_SIZE,
-    CONNECT_TIMEOUT,
+    SPEED_MIN,
+    THROTTLE_DELAY,
+    VAL_POWER_OFF,
+    VAL_POWER_ON,
+    VAL_RAINBOW_ON,
 )
-
 
 _PACKET_SUFFIX = bytes(FOOTER)
 _PACKET_HEADER_IDENTIFIER = bytes([HEADER, *IDENTIFIER])
@@ -104,10 +104,16 @@ class DiodLEDController:
                 if elapsed < THROTTLE_DELAY:
                     await asyncio.sleep(THROTTLE_DELAY - elapsed)
 
-                # Performance optimization: using list comprehension with tuple unpacking
-                # inside b"".join() is significantly faster and more memory efficient
-                # than a for-loop with conditional length checks and appending to a list.
-                payload = b"".join([self._build_packet(*item) for item in chunk])
+                # CMD_CHUNK_SIZE is 1 (one TCP connection per command), so the chunk
+                # holds a single packet: build it directly instead of allocating a
+                # one-element list and copying the whole payload through b"".join().
+                # The join is kept as a fallback for any larger future chunk size.
+                if len(chunk) == 1:
+                    payload = self._build_packet(*chunk[0])
+                else:
+                    # List comprehension with tuple unpacking inside b"".join() is
+                    # faster than a for-loop with conditional length checks.
+                    payload = b"".join([self._build_packet(*item) for item in chunk])
 
                 if LOGGER.isEnabledFor(logging.DEBUG):
                     LOGGER.debug(
@@ -128,7 +134,7 @@ class DiodLEDController:
                     await asyncio.wait_for(writer.wait_closed(), timeout=2.0)
                     self._last_send_time = time.monotonic()
                 except (
-                    asyncio.TimeoutError,
+                    TimeoutError,
                     ConnectionRefusedError,
                     OSError,
                     ValueError,
@@ -137,7 +143,7 @@ class DiodLEDController:
                         writer.close()
                         try:
                             await asyncio.wait_for(writer.wait_closed(), timeout=2.0)
-                        except (asyncio.TimeoutError, ConnectionRefusedError, OSError):
+                        except (TimeoutError, ConnectionRefusedError, OSError):
                             pass
                     # SECURITY: Escape the error text as well; OSError/gaierror/UnicodeError
                     # messages can echo attacker-influenced host text. ascii() leaves
@@ -176,7 +182,7 @@ class DiodLEDController:
                     writer.close()
                     try:
                         await asyncio.wait_for(writer.wait_closed(), timeout=2.0)
-                    except (asyncio.TimeoutError, OSError):
+                    except (TimeoutError, OSError):
                         pass
 
     async def async_send_command(
