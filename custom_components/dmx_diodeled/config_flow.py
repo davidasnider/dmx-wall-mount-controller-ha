@@ -82,7 +82,11 @@ async def _async_can_connect(host: str, port: int) -> bool:
 class DiodLEDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for DiodeLED DMX Controller."""
 
-    VERSION = 1
+    # v2: discovery MACs are stored as the canonical "aa:bb:cc:dd:ee:ff"
+    # unique ID. v1 entries stored the MAC verbatim (bare hex or as broadcast);
+    # async_migrate_entry in __init__.py rewrites them so existing installs
+    # keep deduping against rebroadcasts after the upgrade.
+    VERSION = 2
     CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_PUSH
 
     @staticmethod

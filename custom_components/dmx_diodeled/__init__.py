@@ -1,19 +1,24 @@
 """The DiodeLED DMX Controller integration."""
 
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_PORT, EVENT_HOMEASSISTANT_STOP, Platform
-from homeassistant.core import HomeAssistant
+import logging
 from typing import Any
 
-from .const import DOMAIN
-from .dmx_controller import DiodLEDController
-from .discovery import async_start_discovery
-from homeassistant.config_entries import SOURCE_INTEGRATION_DISCOVERY
-from homeassistant.const import CONF_MAC
+from homeassistant.config_entries import SOURCE_INTEGRATION_DISCOVERY, ConfigEntry
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_MAC,
+    CONF_PORT,
+    EVENT_HOMEASSISTANT_STOP,
+    Platform,
+)
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
+
+from .const import DOMAIN
+from .discovery import async_start_discovery
+from .dmx_controller import DiodLEDController
 from .entity import configured_zones, zone_unique_id
-import logging
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,6 +29,66 @@ PLATFORMS = [Platform.LIGHT, Platform.NUMBER]
 # "dmx_diodeled:" key lets users start discovery before the first controller
 # is added.
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
+
+_MAC_HEX_DIGITS = frozenset("0123456789abcdef")
+
+
+def _canonical_unique_id(unique_id: str | None) -> str | None:
+    """Rewrite a version-1 unique ID to the canonical "aa:bb:cc:dd:ee:ff" form.
+
+    Version 1 stored the stripped, lowercased discovery MAC verbatim - bare hex
+    (aabbccddeeff) or with whatever separators the firmware broadcast. Version 2
+    canonicalizes every accepted spelling (config_flow._mac_canonical_id), so a
+    MAC-shaped v1 ID is rewritten; anything else (including non-MAC strings that
+    v1 stored before format validation existed) is returned unchanged.
+    """
+    if not unique_id:
+        return unique_id
+    digits = unique_id.replace(":", "").replace("-", "")
+    if len(digits) == 12 and set(digits).issubset(_MAC_HEX_DIGITS):
+        return ":".join(digits[i : i + 2] for i in range(0, 12, 2))
+    return unique_id
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Migrate a version 1 entry to the canonical unique ID (version 2).
+
+    Without the rewrite, a rebroadcast from an already-configured controller
+    canonicalizes to "aa:bb:cc:dd:ee:ff" and no longer matches the verbatim v1
+    unique ID (bare hex or "-"-separated): discovery would offer a duplicate
+    entry and the flow's updates={CONF_HOST} path would stop firing. Non-MAC
+    unique IDs are kept; the version is always bumped so this runs once.
+    """
+    if entry.version != 1:
+        return True
+
+    unique_id = _canonical_unique_id(entry.unique_id)
+    if unique_id is not None and unique_id != entry.unique_id:
+        already_used = any(
+            other.entry_id != entry.entry_id and other.unique_id == unique_id
+            for other in hass.config_entries.async_entries(DOMAIN)
+        )
+        if already_used:
+            # Two v1 entries for the same MAC in different spellings (possible
+            # pre-canonicalization). Core would log an error if we shared the
+            # canonical ID, so keep this entry's old ID (its device still dedupes
+            # by host) and only bump the version.
+            _LOGGER.warning(
+                "Keeping unique ID %r of entry %s; another entry already uses the"
+                " canonical form %r. The device still dedupes by host.",
+                entry.unique_id,
+                entry.entry_id,
+                unique_id,
+            )
+            hass.config_entries.async_update_entry(entry, version=2)
+        else:
+            hass.config_entries.async_update_entry(
+                entry, unique_id=unique_id, version=2
+            )
+    else:
+        hass.config_entries.async_update_entry(entry, version=2)
+
+    return True
 
 
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
