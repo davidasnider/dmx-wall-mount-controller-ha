@@ -13,8 +13,11 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 
+from .config_flow import _mac_is_well_formed
 from .const import DOMAIN
 from .discovery import async_start_discovery
 from .dmx_controller import DiodLEDController
@@ -135,6 +138,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = controller
 
+    _async_remove_spoofed_mac_connections(hass, entry)
     _async_remove_disabled_zone_entities(hass, entry)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -156,6 +160,39 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
     or a discovery-driven host update) reloads exactly once.
     """
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+def _async_remove_spoofed_mac_connections(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> None:
+    """Remove attacker-chosen strings stored as the device's network-MAC connection.
+
+    Legacy (pre-#160) entries stored whatever string a LAN attacker broadcast as
+    the entry's unique ID, and device_info() exposed it to the registry as a
+    CONNECTION_NETWORK_MAC connection before format validation existed. Hiding
+    such values in device_info() only stops *new* registrations: async_get_or_create
+    merges connections and never removes them, so the connection already stored on
+    a legacy install would stay in the registry indefinitely and keep affecting
+    identity matching. Purge it at setup so a pre-fix install self-heals on the
+    first setup/reload.
+    """
+    # Only legacy entries with a non-MAC unique ID can carry such a connection.
+    if not entry.unique_id or _mac_is_well_formed(entry.unique_id.lower()):
+        return
+    registry = dr.async_get(hass)
+    device = registry.async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+    if device is None:
+        return
+    bad_connections = {
+        connection
+        for connection in device.connections
+        if connection[0] == CONNECTION_NETWORK_MAC
+        and not _mac_is_well_formed(connection[1].lower())
+    }
+    if bad_connections:
+        registry.async_update_device(
+            device.id, new_connections=device.connections - bad_connections
+        )
 
 
 def _async_remove_disabled_zone_entities(
