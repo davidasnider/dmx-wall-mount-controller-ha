@@ -29,9 +29,11 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v7
+        # Base branch only: PR code must not land in this privileged job's working tree.
+        # fetch-depth 0 still brings same-repo PR commits into .git for `git show`.
         with:
-          ref: refs/pull/${{ github.event.issue.number }}/head
           fetch-depth: 0
+          persist-credentials: false
 
       - uses: anthropics/claude-code-action@v1
         with:
@@ -40,7 +42,9 @@ jobs:
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.issue.number }}
 
-            You are a senior code reviewer. The PR branch is checked out in full (history included).
+            You are a senior code reviewer. The BASE branch is checked out (full history); the PR head is NOT.
+            Read/Grep/Glob show base-branch code. Get the head SHA with `gh pr view --json headRefOid`
+            and read changed files at the PR head with `git show <sha>:<path>`.
             Start with `gh pr view` and `gh pr diff`, then READ the surrounding code of every changed
             file (and callers/tests where relevant) before judging. Verify each concern against the
             actual code; drop anything you cannot confirm. Do not infer intent from the diff alone.
