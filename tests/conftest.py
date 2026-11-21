@@ -248,14 +248,15 @@ _install_module(
     empty_config_schema=lambda domain: ("empty_config_schema", domain),
     multi_select=lambda options: ("multi_select", options),
 )
+# Tests patch these per test; the defaults report an empty registry.
 _install_module(
     "homeassistant.helpers.device_registry",
     CONNECTION_NETWORK_MAC="mac",
     # DeviceInfo is a TypedDict in Home Assistant.
     DeviceInfo=dict,
     format_mac=format_mac,
+    async_get=MagicMock(),
 )
-# Tests patch these per test; the defaults report an empty registry.
 _install_module(
     "homeassistant.helpers.entity_registry",
     async_get=MagicMock(),

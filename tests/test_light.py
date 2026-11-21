@@ -1,9 +1,8 @@
-import asyncio
 import types
 import unittest.mock
-import pytest
 from typing import Any
 
+import pytest
 from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.dmx_diodeled.light import EFFECT_OFF, DiodLEDLight
@@ -192,9 +191,7 @@ async def test_effect_off_with_no_active_effect_keeps_light_on(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "error", [OSError("Connection refused"), asyncio.TimeoutError()]
-)
+@pytest.mark.parametrize("error", [OSError("Connection refused"), TimeoutError()])
 async def test_turn_on_send_failure_keeps_previous_state(
     light: DiodLEDLight, mock_controller: Any, error: Exception
 ) -> None:
@@ -389,6 +386,23 @@ def test_device_info_for_discovered_entry_has_mac(
     info = DiodLEDLight(mock_controller, entry)._attr_device_info
 
     assert info["connections"] == {("mac", "aa:bb:cc:dd:ee:ff")}
+
+
+def test_device_info_hides_legacy_non_mac_unique_id(
+    mock_controller: Any, entry: Any
+) -> None:
+    """A pre-v2 unique ID that is not a real MAC must not become a registry connection.
+
+    Before MAC format validation existed, the discovery flow stored whatever
+    string a LAN attacker broadcast as the entry's unique ID. Those IDs are
+    kept by migration, but only a well-formed 48-bit MAC may be exposed as the
+    device's network-MAC connection.
+    """
+    entry.unique_id = "not-a-mac"
+
+    info = DiodLEDLight(mock_controller, entry)._attr_device_info
+
+    assert "connections" not in info
 
 
 @pytest.mark.asyncio

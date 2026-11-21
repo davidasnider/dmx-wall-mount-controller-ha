@@ -99,6 +99,7 @@ def _config_entry(options: dict[str, Any] | None = None) -> Any:
         entry_id="entry1",
         data={"host": "192.168.1.50"},
         options=options or {},
+        unique_id=None,
         add_update_listener=unittest.mock.Mock(return_value="remove_listener"),
         async_on_unload=unittest.mock.Mock(),
     )
@@ -158,6 +159,7 @@ async def test_reconfigure_triggers_exactly_one_reload(hass: Any) -> None:
         entry_id="entry1",
         data={"host": "192.168.1.50"},
         options={},
+        unique_id=None,
         _update_listeners=listeners,
         add_update_listener=add_update_listener,
         async_on_unload=unittest.mock.Mock(),
@@ -264,6 +266,77 @@ async def test_setup_entry_removes_entities_of_disabled_zones(hass: Any) -> None
 
     removed = [call.args[0] for call in registry.async_remove.call_args_list]
     assert removed == ["light.zone_2", "number.zone_2"]
+
+
+# ---------------------------------------------------------------------------
+# Legacy device registry cleanup (spoofed MAC connections from pre-#160 installs)
+
+
+def _legacy_entry() -> Any:
+    """An entry the way a pre-#160 install left it: non-MAC unique ID kept by
+    migration, and the same string stored on the device as a network-MAC connection."""
+    entry = _config_entry()
+    entry.unique_id = "not-a-mac"
+    return entry
+
+
+def _device_registry_with_device(connections: set[tuple[str, str]]) -> Any:
+    registry = unittest.mock.MagicMock()
+    registry.async_get_device.return_value = types.SimpleNamespace(
+        id="device1", connections=connections
+    )
+    return registry
+
+
+@pytest.mark.asyncio
+async def test_setup_entry_removes_spoofed_mac_connection_from_registry(
+    hass: Any,
+) -> None:
+    """Hiding a non-MAC unique ID from device_info() only stops new
+    registrations: async_get_or_create merges connections and never removes
+    them, so a connection already stored on a legacy install must be purged
+    from the registry at setup or it keeps affecting identity matching."""
+    entry = _legacy_entry()
+    registry = _device_registry_with_device({("mac", "not-a-mac")})
+
+    with unittest.mock.patch.object(integration.dr, "async_get", return_value=registry):
+        assert await integration.async_setup_entry(hass, entry) is True
+
+    registry.async_get_device.assert_called_once_with(identifiers={(DOMAIN, "entry1")})
+    registry.async_update_device.assert_called_once_with(
+        "device1", new_connections=set()
+    )
+
+
+@pytest.mark.asyncio
+async def test_setup_entry_registry_cleanup_keeps_well_formed_mac(hass: Any) -> None:
+    """The purge must remove only the spoofed connection; a well-formed MAC
+    stored on the same device survives."""
+    entry = _legacy_entry()
+    registry = _device_registry_with_device(
+        {("mac", "not-a-mac"), ("mac", "aa:bb:cc:dd:ee:ff")}
+    )
+
+    with unittest.mock.patch.object(integration.dr, "async_get", return_value=registry):
+        assert await integration.async_setup_entry(hass, entry) is True
+
+    registry.async_update_device.assert_called_once_with(
+        "device1", new_connections={("mac", "aa:bb:cc:dd:ee:ff")}
+    )
+
+
+@pytest.mark.asyncio
+async def test_setup_entry_no_registry_update_without_device(hass: Any) -> None:
+    """A legacy entry whose device is absent from the registry (e.g. deleted
+    by the user) must not fail setup or write anything."""
+    entry = _legacy_entry()
+    registry = unittest.mock.MagicMock()
+    registry.async_get_device.return_value = None
+
+    with unittest.mock.patch.object(integration.dr, "async_get", return_value=registry):
+        assert await integration.async_setup_entry(hass, entry) is True
+
+    registry.async_update_device.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

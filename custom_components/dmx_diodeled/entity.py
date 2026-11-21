@@ -8,6 +8,7 @@ from homeassistant.helpers.device_registry import (
     format_mac,
 )
 
+from .config_flow import _mac_is_well_formed
 from .const import CONF_ZONES, DEFAULT_NAME, DEFAULT_ZONES, DOMAIN, MANUFACTURER, MODEL
 
 
@@ -40,6 +41,11 @@ def device_info(entry: ConfigEntry) -> DeviceInfo:
     )
     # Discovered entries use the controller's MAC as their unique ID; manual
     # entries have none.
-    if entry.unique_id:
+    # SECURITY: Legacy (pre-v2) entries stored the discovery MAC verbatim, so a
+    # LAN attacker could have made an arbitrary string the entry's unique ID,
+    # and migration keeps such IDs. Only a well-formed 48-bit MAC may be
+    # exposed to the registry as a network-MAC connection; anything else keeps
+    # its unique ID (for dedupe) but presents no MAC, like a manual entry.
+    if entry.unique_id and _mac_is_well_formed(entry.unique_id.lower()):
         info["connections"] = {(CONNECTION_NETWORK_MAC, format_mac(entry.unique_id))}
     return info
