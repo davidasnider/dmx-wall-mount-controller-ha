@@ -54,7 +54,7 @@ If your controller was not offered automatically (or you prefer to configure it 
 5. In the configuration dialog, enter the following details:
    - **Host:** The IP address of your DMX controller on your local network (e.g., `192.168.1.50`).
    - **Port:** `8899` (This is the default port for these devices and rarely needs changing).
-   - **Name:** A friendly name for your controller (default is "DiodeLED DMX").
+   - **Name:** A friendly name for your controller (default is "DiodeLED DMX Controller").
 6. Click **Submit**. Home Assistant checks that the controller accepts a connection (if it cannot, you get a "Could not connect" error and can correct the details), then adds a **device** for the controller with a light entity (e.g., `light.diodeled_dmx`) and a rainbow speed slider.
 
 **Requires Home Assistant 2025.11 or newer.**
